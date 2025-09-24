@@ -1,3 +1,7 @@
+# Create and Run the User Interface for Gas Mixing System
+# Using tkinter for GUI elements
+
+
 import tkinter as tk
 from tkinter import scrolledtext
 import time
