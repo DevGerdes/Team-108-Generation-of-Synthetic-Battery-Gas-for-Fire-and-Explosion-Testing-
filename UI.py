@@ -4,6 +4,7 @@ import time
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 
 class UI_Object(tk.Tk):
     ## Define all UI variables and build the layout
@@ -14,9 +15,14 @@ class UI_Object(tk.Tk):
         self.configure(bg=STYLES["bg"])
         self.state("zoomed")
 
+        # Define names for main displays and buttons
         self.main_display_names = ["Overview", "Controls", "Logs", "Graph", "Settings"]
         self.main_display_titles = ["Overview", "Controls", "Logs", "Graph", "Settings"]
-        self.function_buttons = ["START", "STOP", "Func C", "Func D", "Func E"]
+        self.function_buttons = ["START", "STOP", "TEST RECIPE LOAD", "Func D", "EMERGENCY STOP"]
+
+        # Define graph names and variable names for overview display
+        self.graph_names = ["MFC 1 Response", "MFC 2 Response", "MFC 3 Response"]
+        self.graph_variable_names = ["Flow Rate (SLPM)", "Flow Rate (SLPM)", "Flow Rate (SLPM)"]
 
         self.window_nav_frame = tk.Frame(self, bg=STYLES["panel_bg"])
         self.window_nav_frame.grid(row=0, column=0, sticky="nsew")
@@ -97,22 +103,42 @@ class UI_Object(tk.Tk):
         self.indicators = []
         for i in range(3):
             lbl = tk.Label(indicator_frame, text=f"Indicator {i+1}",
-                           fg=STYLES["text"], bg="green", font=("Segoe UI", 14, "bold"), width=20)
+                        fg=STYLES["text"], bg="green", font=("Segoe UI", 14, "bold"), width=20)
             lbl.pack(side="left", padx=10)
             self.indicators.append(lbl)
 
-        # Matplotlib 3x3 grid
-        fig, axes = plt.subplots(3, 3, figsize=(8, 8))
-        t = np.arange(0, 10, 1)
-        for i, ax in enumerate(axes.flatten()):
-            var = np.random.rand(10)
-            ax.plot(t, var, marker="o")
-            ax.set_title(f"var{i+1} vs t{i+1}", fontsize=8)
+        # Determine layout
+        num_graphs = len(self.graph_names)
+        ncols = 3
+        nrows = math.ceil(num_graphs / ncols)
+
+        # Matplotlib grid
+        fig, axes = plt.subplots(nrows, ncols, figsize=(8, 3 * nrows))
+        axes = axes.flatten() if num_graphs > 1 else [axes]
+
+        self.fig = fig
+        self.graphs = {}
+
+        for i, name in enumerate(self.graph_names):
+            ax = axes[i]
+            (line,) = ax.plot([], [], marker="o")  # start blank
+            ax.set_title(name, fontsize=8)
+            ax.set_xlabel("Time (s)")
+            ax.set_ylabel(self.graph_variable_names[i])
+            self.graphs[name] = {"ax": ax, "line": line}
+
+        # Hide unused subplots if total < nrows*ncols
+        for j in range(len(self.graph_names), len(axes)):
+            axes[j].axis("off")
+
         fig.tight_layout()
 
+        # Embed figure in Tkinter
         canvas = FigureCanvasTkAgg(fig, master=frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill="both", expand=True)
+        self.canvas = canvas
+
     
     def _build_terminal(self):
         lbl = tk.Label(self.terminal_frame, text="Terminal",

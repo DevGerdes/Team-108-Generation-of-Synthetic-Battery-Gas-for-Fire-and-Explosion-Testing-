@@ -6,7 +6,11 @@
 import tkinter as tk
 from tkinter import scrolledtext
 import time
-import threading
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+
 
 # Import functions from other files
 from UI import UI_Object
