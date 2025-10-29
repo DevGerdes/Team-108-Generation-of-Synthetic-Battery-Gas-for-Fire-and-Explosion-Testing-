@@ -30,8 +30,8 @@ MFC_SETPOINT = [0.0, 0.0, 0.0, 0.0, 0.0]
 MFC_RESPONSE = [0.0, 0.0, 0.0, 0.0, 0.0]
 
 # Data plotting and saving variables
-MFC_SETPOINT_HISTORY = [[], [], [], [], []]  # 5 lists for 5 MFC's
-MFC_RESPONSE_HISTORY = [[], [], [], [], []]  # 5 lists for 5 MFC's
+MFC_1SETPOINT_HISTORY = []  # 5 lists for 5 MFC's
+MFC_1_RESPONSE_HISTORY = []  # 5 lists for 5 MFC's
 MFC_TIME_HISTORY = []
 
 PRESSURE_SENOR_1_HISTORY = []

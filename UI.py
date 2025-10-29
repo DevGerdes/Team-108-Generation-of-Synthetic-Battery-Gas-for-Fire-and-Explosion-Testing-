@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class UI_Object(tk.Tk):
+    ## Define all UI variables and build the layout
     def __init__(self):
         super().__init__()
         self.title("Gas_Mixing_UI")
@@ -15,6 +16,7 @@ class UI_Object(tk.Tk):
 
         self.main_display_names = ["Overview", "Controls", "Logs", "Graph", "Settings"]
         self.main_display_titles = ["Overview", "Controls", "Logs", "Graph", "Settings"]
+        self.function_buttons = ["START", "STOP", "Func C", "Func D", "Func E"]
 
         self.window_nav_frame = tk.Frame(self, bg=STYLES["panel_bg"])
         self.window_nav_frame.grid(row=0, column=0, sticky="nsew")
@@ -39,7 +41,11 @@ class UI_Object(tk.Tk):
         self._build_center_displays()
         self._build_bottom_buttons()
 
+    ######################
+    ## Begin Build functions to make UI objects and screens, link to functions. Each called once. 
     def _build_window_nav(self):
+        # Populate left frame with navigation buttons
+        # Create frame label
         label = tk.Label(self.window_nav_frame, text="Displays",
                          fg=STYLES["text"], bg=STYLES["panel_bg"],
                          font=("Segoe UI", 10, "bold"))
@@ -48,6 +54,7 @@ class UI_Object(tk.Tk):
         self.center_buttons = []
         self.displays = {}
 
+        # make the buttons
         for n in self.main_display_names:
             b = tk.Button(self.window_nav_frame, text=n,
                           command=lambda name=n: self.show_display(name),
@@ -58,23 +65,27 @@ class UI_Object(tk.Tk):
             self.center_buttons.append(b)
 
     def _build_center_displays(self):
+        # Populate each center display with objects
+
+        # Create a stack frame to hold all center displays
         self.center_stack = tk.Frame(self.main_display_frame, bg=STYLES["bg"])
         self.center_stack.pack(fill="both", expand=True)
 
+        # Create each display frame and add to stack
         for i, name in enumerate(self.main_display_names):
-            self._make_main_display_frame(name, self.main_display_titles[i])
+            f = tk.Frame(self.center_stack, bg=STYLES["bg"])
+            l = tk.Label(f, text=self.main_display_titles[i], fg=STYLES["text"],
+                        bg=STYLES["bg"], font=("Segoe UI", 16, "bold"))
+            l.pack(pady=16)
+            f.place(in_=self.center_stack, x=0, y=0, relwidth=1, relheight=1)
+            self.displays[name] = f
 
+        # Build specific displays
         self._build_overview_display()
 
+        # Show default display on start
         self.show_display(self.main_display_names[0])
 
-    def _make_main_display_frame(self, name, label_text):
-        f = tk.Frame(self.center_stack, bg=STYLES["bg"])
-        l = tk.Label(f, text=label_text, fg=STYLES["text"],
-                     bg=STYLES["bg"], font=("Segoe UI", 16, "bold"))
-        l.pack(pady=16)
-        f.place(in_=self.center_stack, x=0, y=0, relwidth=1, relheight=1)
-        self.displays[name] = f
 
     def _build_overview_display(self):
         frame = self.displays["Overview"]
@@ -102,20 +113,7 @@ class UI_Object(tk.Tk):
         canvas = FigureCanvasTkAgg(fig, master=frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill="both", expand=True)
-
-    def update_indicators(self, values, colors):
-        for i, lbl in enumerate(self.indicators):
-            lbl.config(text=values[i], bg=colors[i])
-
-    def show_display(self, name):
-        if name not in self.displays:
-            self.write_to_terminal(f"[ERROR] No display: {name}")
-            return
-        self.displays[name].lift()
-        self.write_to_terminal(f"[INFO] Display switched to {name}")
-        for b in self.center_buttons:
-            b.configure(bg=STYLES["accent"] if b["text"] == name else STYLES["button_bg"])
-
+    
     def _build_terminal(self):
         lbl = tk.Label(self.terminal_frame, text="Terminal",
                        fg=STYLES["text"], bg=STYLES["panel_bg"],
@@ -126,7 +124,21 @@ class UI_Object(tk.Tk):
             bg=STYLES["terminal_bg"], fg=STYLES["text"],
             insertbackground=STYLES["text"], relief="flat", wrap="word", state="disabled")
         self.terminal.pack(fill="both", expand=True, padx=8, pady=(0,8))
+    
 
+    def _build_bottom_buttons(self):
+            # Create bottom buttons
+            for n in self.function_buttons:
+                print(n)
+                b = tk.Button(self.bottom_frame, text=n,
+                            command=lambda name=n: self.on_bottom_press(name),
+                            bg=STYLES["button_bg"], fg=STYLES["text"],
+                            activebackground=STYLES["button_active"],
+                            relief="flat", padx=12, pady=8)
+                b.pack(side="left", padx=8, pady=8)
+
+    ##################
+    ## Begin function handling for UI actions
     def write_to_terminal(self, text, timestamp=True):
         ts = f"[{time.strftime('%H:%M:%S')}] " if timestamp else ""
         self.terminal.configure(state="normal")
@@ -134,19 +146,36 @@ class UI_Object(tk.Tk):
         self.terminal.see("end")
         self.terminal.configure(state="disabled")
 
-    def _build_bottom_buttons(self):
-        for n in ["Func A", "Func B", "Func C", "Func D", "Func E"]:
-            b = tk.Button(self.bottom_frame, text=n,
-                          command=lambda name=n: self.on_bottom_press(name),
-                          bg=STYLES["button_bg"], fg=STYLES["text"],
-                          activebackground=STYLES["button_active"],
-                          relief="flat", padx=12, pady=8)
-            b.pack(side="left", padx=8, pady=8)
-
     def on_bottom_press(self, name):
-        self.write_to_terminal(f"[ACTION] {name} pressed")
+        # Handle bottom button presses and call or perform appropriate actions
+        if name == self.function_buttons[0]: # Start button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+        if name == self.function_buttons[1]: # Stop button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+        if name == self.function_buttons[2]: # Func C button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+        if name == self.function_buttons[3]: # Func D button"
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+        if name == self.function_buttons[4]: # Func E button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+    
+    def show_display(self, name):
+        # Handle navigation button presses to switch center display
+        if name not in self.displays:
+            self.write_to_terminal(f"[ERROR] No display: {name}")
+            return
+        self.displays[name].lift()
+        self.write_to_terminal(f"[INFO] Display switched to {name}")
+        for b in self.center_buttons:
+            b.configure(bg=STYLES["accent"] if b["text"] == name else STYLES["button_bg"])
+
+    def update_indicators(self, values, colors):
+        for i, lbl in enumerate(self.indicators):
+            lbl.config(text=values[i], bg=colors[i])
 
 
+###############
+## UI test code
 STYLES = {
     "bg": "#0f1115",
     "panel_bg": "#111316",
