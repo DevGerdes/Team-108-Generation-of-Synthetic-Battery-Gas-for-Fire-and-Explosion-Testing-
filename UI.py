@@ -1,10 +1,12 @@
 import tkinter as tk
 from tkinter import scrolledtext
+from tkinter import Tk, filedialog
 import time
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import pandas as pd
 
 class UI_Object(tk.Tk):
     ## Define all UI variables and build the layout
@@ -16,9 +18,9 @@ class UI_Object(tk.Tk):
         self.state("zoomed")
 
         # Define names for main displays and buttons
-        self.main_display_names = ["Overview", "Controls", "Logs", "Graph", "Settings"]
-        self.main_display_titles = ["Overview", "Controls", "Logs", "Graph", "Settings"]
-        self.function_buttons = ["START", "STOP", "TEST RECIPE LOAD", "Func D", "EMERGENCY STOP"]
+        self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
+        self.main_display_titles = self.main_display_names
+        self.function_buttons = ["START", "STOP", "TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP"]
 
         # Define graph names and variable names for overview display
         self.graph_names = ["MFC 1 Response", "MFC 2 Response", "MFC 3 Response"]
@@ -94,7 +96,7 @@ class UI_Object(tk.Tk):
 
 
     def _build_overview_display(self):
-        frame = self.displays["Overview"]
+        frame = self.displays[self.main_display_names[0]]
 
         # Indicators row
         indicator_frame = tk.Frame(frame, bg=STYLES["bg"])
@@ -155,7 +157,6 @@ class UI_Object(tk.Tk):
     def _build_bottom_buttons(self):
             # Create bottom buttons
             for n in self.function_buttons:
-                print(n)
                 b = tk.Button(self.bottom_frame, text=n,
                             command=lambda name=n: self.on_bottom_press(name),
                             bg=STYLES["button_bg"], fg=STYLES["text"],
@@ -178,10 +179,12 @@ class UI_Object(tk.Tk):
             self.write_to_terminal(f"[ACTION] {name} pressed")
         if name == self.function_buttons[1]: # Stop button
             self.write_to_terminal(f"[ACTION] {name} pressed")
-        if name == self.function_buttons[2]: # Func C button
+        if name == self.function_buttons[2]: # TEST RECIPE LOAD button
             self.write_to_terminal(f"[ACTION] {name} pressed")
-        if name == self.function_buttons[3]: # Func D button"
+            self.load_and_interpolate_excel()
+        if name == self.function_buttons[3]: # REPORT VARIABLES button"
             self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.print_variables()
         if name == self.function_buttons[4]: # Func E button
             self.write_to_terminal(f"[ACTION] {name} pressed")
     
@@ -199,6 +202,84 @@ class UI_Object(tk.Tk):
         for i, lbl in enumerate(self.indicators):
             lbl.config(text=values[i], bg=colors[i])
 
+    def load_and_interpolate_excel(self,resolution=0.1):
+        global valid_titles, test_columns, test_plan
+        
+        # Hide the tkinter root window
+        root = Tk()
+        root.withdraw()
+
+        # Open file dialog
+        file_path = filedialog.askopenfilename(
+            title="Select Excel File",filetypes=[("Excel files", "*.xlsx *.xls")])
+
+        if not file_path:
+            self.write_to_terminal("No file selected.")
+            return None, None
+
+        # Load the Excel file
+        df = pd.read_excel(file_path)
+
+        ## Check test file validity
+        # ---- 1. Check column titles ----
+        if not all(title in valid_titles for title in df.columns):
+            self.write_to_terminal("Error: One or more column titles are invalid. "
+                f"Expected only these: {valid_titles}")
+            return df.columns.tolist(), [[0] * len(df.columns)]
+        # ---- 2. Check for empty cells ----
+        if df.isnull().values.any():
+            self.write_to_terminal("Error: The file contains empty cells. "
+                "Please fill or remove missing data before loading.")
+            return df.columns.tolist(), [[0] * len(df.columns)]
+        # ---- 3. Ensure numeric data in main columns (excluding first column) ----
+        for col in df.columns[1:]:
+            if not pd.to_numeric(df[col], errors='coerce').notna().all():
+                self.write_to_terminal(f"Error: Non-numeric values found in data column '{col}'.")
+                return df.columns.tolist(), [[0] * len(df.columns)]
+        # ---- 4. Check that time values are numeric ----
+        time = pd.to_numeric(df.iloc[:, 0], errors='coerce')
+        if not time.notna().all():
+            self.write_to_terminal("Error: Time column contains non-numeric or missing values.")
+            return df.columns.tolist(), [[0] * len(df.columns)]
+        # ---- 5. Check that time values are strictly increasing ----
+        if not all(np.diff(time) > 0):
+            self.write_to_terminal("Error: Time values are not strictly increasing.")
+            return df.columns.tolist(), [[0] * len(df.columns)]
+        # ---- 6. Check that time values do not exceed 3600 seconds ----
+        if time.max() > 3600:
+            self.write_to_terminal(f"Error: Time values exceed 3600 seconds (found max={time.max():.2f}).")
+            return df.columns.tolist(), [[0] * len(df.columns)]
+
+
+        # Extract column titles
+        column_titles = df.columns.tolist()
+        # Ensure first column is numeric time data
+        time = pd.to_numeric(df.iloc[:, 0], errors='coerce').dropna().to_numpy()
+        start_t, end_t = time[0], time[-1]
+        # Generate new time vector with desired resolution
+        new_time = np.arange(start_t, end_t + resolution, resolution)
+
+        # Interpolate remaining columns
+        interpolated_data = [new_time.tolist()]  # first column is time
+        for col in df.columns[1:]:
+            y = pd.to_numeric(df[col], errors='coerce').to_numpy()
+            valid = ~np.isnan(y)
+            interp_y = np.interp(new_time, time[valid], y[valid])
+            interpolated_data.append(interp_y.tolist())
+
+        # Replace original first column title with the same
+        self.write_to_terminal(f"Interpolated data from {start_t:.2f}s to {end_t:.2f}s at {resolution:.1f}s resolution.")
+        self.write_to_terminal(f"Columns: {', '.join(column_titles)}")
+        test_columns = column_titles
+        test_plan = interpolated_data
+
+    def print_variables(self):
+        self.write_to_terminal(f"Test Columns: {test_columns}")
+        self.write_to_terminal(f"Test Plan (first 5 rows):")
+        for row in test_plan:
+            self.write_to_terminal(f"{row}")
+
+
 
 ###############
 ## UI test code
@@ -213,7 +294,9 @@ STYLES = {
     "entry_bg": "#0d1013",
     "terminal_bg": "#05070a",
 }
-
+valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4"]
+test_columns = []
+test_plan = []
 
 if __name__ == "__main__":
     Gas_Mixing_UI = UI_Object()

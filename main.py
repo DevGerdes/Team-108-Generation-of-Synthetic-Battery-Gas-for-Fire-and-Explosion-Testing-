@@ -51,9 +51,9 @@ sum_mole_fraction = np.sum(mole_fractions)  # Sum of mole fractions. Should be ~
 Vdot_gas = [a*b for a,b in zip(mole_fractions, Vtot_std)]  # Voloumetric flow rate per gas [SLPM]
 Vtot_actual = Vtot_std * (T_Line / T_std) * (P_std / P_Line)
 
-# Calculated Continuously
-rho_mix_std = P_std/( (R_u * T_std) * np.sum([x_i*M_i for x,M in zip(x,mole_fractions)]) ) # Mixture density at standard conditions [kg/m^3]
-rho_mix_line = P_std/(R_u * T_Line)*np.sum([x_i*M_i for x,M in zip(x,mole_fractions)]) # Mixture density at standard conditions [kg/m^3]]
+"""Calculated Continuously"""
+rho_mix_std = P_std/( (R_u * T_std) * np.sum([x*M for x,M in zip(x,mole_fractions)]) ) # Mixture density at standard conditions [kg/m^3]
+rho_mix_line = P_std/(R_u * T_Line)*np.sum([x*M for x,M in zip(x,mole_fractions)]) # Mixture density at standard conditions [kg/m^3]]
 mdot = [rho_std*Vdot_i for rho_std,Vdot_i in zip(rho_mix_std,Vdot_gas)]  # Mass flow rate per gas at standard conditions [kg/s]
 mdot_total = np.sum(mdot)  # Total mass flow rate at standard conditions [kg/s]
 A_nozzle = .01 # Nozzle exit area [m^2]
@@ -80,9 +80,7 @@ MFC_TIME_HISTORY = []
 PRESSURE_SENOR_1_HISTORY = []
 PRESSURE_SENOR_2_HISTORY = []
 
-
-
-# For UI
+"""UI Variables"""
 STYLES = {
     "bg": "#f0f0f0",
     "panel_bg": "#d9d9d9",
@@ -92,6 +90,9 @@ STYLES = {
     "terminal_bg": "#1e1e1e",
     "terminal_fg": "#d4d4d4"
 }
+valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4"]
+test_columns = []
+test_plan = []
 
 ### Start main code
 if __name__ == "__main__":
