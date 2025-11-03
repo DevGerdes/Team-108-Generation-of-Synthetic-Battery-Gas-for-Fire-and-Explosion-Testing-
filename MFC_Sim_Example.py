@@ -58,7 +58,7 @@ class MFC_UI:
         self.canvas_widget.grid(row=1, column=0, columnspan=3, pady=10)
 
         # Start periodic updates
-        self.update_plot()
+        self.update_p6lot()
 
     def update_setpoint(self):
         """Set a new setpoint in the simulator."""
