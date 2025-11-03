@@ -29,7 +29,7 @@ STATE = 0  # This is the global state variable that will be shared
 # Controls default variables
 MFC_P = [1,1,1,1,1]  
 MFC_I = [0.0, 0.0, 0.0, 0.0, 0.0]  
-
+MFC_ON = [1, 1, 0, 0, 0] # [1 = ON, 0 = OFF]
 MFC_SETPOINT = [0.0, 0.0, 0.0, 0.0, 0.0]
 MFC_RESPONSE = [0.0, 0.0, 0.0, 0.0, 0.0]
 
