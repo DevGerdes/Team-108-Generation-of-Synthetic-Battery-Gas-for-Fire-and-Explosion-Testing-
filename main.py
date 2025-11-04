@@ -5,25 +5,24 @@
 #Import all needed libraries
 import tkinter as tk
 from tkinter import scrolledtext
+from tkinter import Tk, filedialog
 import time
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import pandas as pd
 
 
-# Import functions from other files
+# Import functions or objects from other files
 from UI import UI_Object
 from Controls import ControlSystem
 
 ### Define global variables
 # State change definitions
-#  0 = System setup
-#  1 = idle (MFC's closed, data read on)
-#  2 = run controls loop
-#  3 = non-dangerous erorr
-#  4 = EMERGENCY STOP
-#  5 = Device shut off
+#  0 = Emergency Stop
+#  1 = Idle
+# 2 = Run Test
 STATE = 0  # This is the global state variable that will be shared
 
 """Design Variables
@@ -43,22 +42,22 @@ sample_rate = .2  # Sample rate [sec]
 
 """Measured Variables"""
 T_Line = 0  # Temperature in line [C]
-P_Line = 0  # Pressure in line [PSI]
+P_Line = 1  # Pressure in line [PSI]
 
 """Computed Variables"""
 # Calculated Once
 sum_mole_fraction = np.sum(mole_fractions)  # Sum of mole fractions. Should be ~1
-Vdot_gas = [a*b for a,b in zip(mole_fractions, Vtot_std)]  # Voloumetric flow rate per gas [SLPM]
+Vdot_gas = [m_i*Vtot_std for m_i in mole_fractions]  # Voloumetric flow rate per gas [SLPM]
 Vtot_actual = Vtot_std * (T_Line / T_std) * (P_std / P_Line)
 
 """Calculated Continuously"""
-rho_mix_std = P_std/( (R_u * T_std) * np.sum([x*M for x,M in zip(x,mole_fractions)]) ) # Mixture density at standard conditions [kg/m^3]
-rho_mix_line = P_std/(R_u * T_Line)*np.sum([x*M for x,M in zip(x,mole_fractions)]) # Mixture density at standard conditions [kg/m^3]]
-mdot = [rho_std*Vdot_i for rho_std,Vdot_i in zip(rho_mix_std,Vdot_gas)]  # Mass flow rate per gas at standard conditions [kg/s]
-mdot_total = np.sum(mdot)  # Total mass flow rate at standard conditions [kg/s]
+#rho_mix_std = P_std/( (R_u * T_std) * np.sum([x*M for x,M in zip(x,mole_fractions)]) ) # Mixture density at standard conditions [kg/m^3]
+#rho_mix_line = P_std/(R_u * T_Line)*np.sum([x*M for x,M in zip(x,mole_fractions)]) # Mixture density at standard conditions [kg/m^3]]
+#mdot = [rho_std*Vdot_i for rho_std,Vdot_i in zip(rho_mix_std,Vdot_gas)]  # Mass flow rate per gas at standard conditions [kg/s]
+#mdot_total = np.sum(mdot)  # Total mass flow rate at standard conditions [kg/s]
 A_nozzle = .01 # Nozzle exit area [m^2]
-V_nozzle = math.sqrt(2*(P_mixing_chamber - P_Nozzle)/rho_mix_line)  # Nozzle exit velocity [m/s]
-LHW_mix = np.sum() # weighted average lower heating value for gas mix
+#V_nozzle = math.sqrt(2*(P_mixing_chamber - P_Nozzle)/rho_mix_line)  # Nozzle exit velocity [m/s]
+#LHW_mix = np.sum() # weighted average lower heating value for gas mix
 
 
 
@@ -94,6 +93,9 @@ valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "C
 test_columns = []
 test_plan = []
 
+"""Controls Variables"""
+resolution = .2 # rate of controls loop [sec]
+
 ### Start main code
 if __name__ == "__main__":
 
@@ -101,3 +103,9 @@ if __name__ == "__main__":
     Gas_Mixing_UI = UI_Object()
     Gas_Mixing_UI.write_to_terminal("App started.")
     Gas_Mixing_UI.mainloop()
+
+    cs = ControlSystem(resolution)
+    cs.start()
+    cs.set_state(1) # Set initial state to Idle
+
+    cs.stop()

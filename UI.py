@@ -8,6 +8,8 @@ import numpy as np
 import math
 import pandas as pd
 
+from Controls import cs
+
 class UI_Object(tk.Tk):
     ## Define all UI variables and build the layout
     def __init__(self):
@@ -20,7 +22,7 @@ class UI_Object(tk.Tk):
         # Define names for main displays and buttons
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
-        self.function_buttons = ["START", "STOP", "TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP"]
+        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP"]
 
         # Define graph names and variable names for overview display
         self.graph_names = ["MFC 1 Response", "MFC 2 Response", "MFC 3 Response"]
@@ -94,7 +96,6 @@ class UI_Object(tk.Tk):
         # Show default display on start
         self.show_display(self.main_display_names[0])
 
-
     def _build_overview_display(self):
         frame = self.displays[self.main_display_names[0]]
 
@@ -153,7 +154,6 @@ class UI_Object(tk.Tk):
             insertbackground=STYLES["text"], relief="flat", wrap="word", state="disabled")
         self.terminal.pack(fill="both", expand=True, padx=8, pady=(0,8))
     
-
     def _build_bottom_buttons(self):
             # Create bottom buttons
             for n in self.function_buttons:
@@ -177,15 +177,25 @@ class UI_Object(tk.Tk):
         # Handle bottom button presses and call or perform appropriate actions
         if name == self.function_buttons[0]: # Start button
             self.write_to_terminal(f"[ACTION] {name} pressed")
+            try:
+                cs.set_state(2) # Set state to RUN TEST
+                self.write_to_terminal("[INFO] Test started.")
+            except Exception as e:
+                self.write_to_terminal(f"[ERROR] Could not start test: {e}")
         if name == self.function_buttons[1]: # Stop button
             self.write_to_terminal(f"[ACTION] {name} pressed")
+            try:
+                cs.set_state(1) # Set state to IDLE
+                self.write_to_terminal("[INFO] Test stopped.")
+            except Exception as e:
+                self.write_to_terminal(f"[ERROR] Could not stop test: {e}")
         if name == self.function_buttons[2]: # TEST RECIPE LOAD button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.load_and_interpolate_excel()
         if name == self.function_buttons[3]: # REPORT VARIABLES button"
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.print_variables()
-        if name == self.function_buttons[4]: # Func E button
+        if name == self.function_buttons[4]: # EMERGENCY STOP button
             self.write_to_terminal(f"[ACTION] {name} pressed")
     
     def show_display(self, name):
