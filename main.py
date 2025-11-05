@@ -99,13 +99,19 @@ resolution = .2 # rate of controls loop [sec]
 ### Start main code
 if __name__ == "__main__":
 
-    # Build UI
+    # Create UI and Controls System objects, then link them
     Gas_Mixing_UI = UI_Object()
+    cs = ControlSystem(resolution)
+    Gas_Mixing_UI.cs = cs
+    cs.UI = Gas_Mixing_UI
+
+    # Start the UI main loop
     Gas_Mixing_UI.write_to_terminal("App started.")
     Gas_Mixing_UI.mainloop()
 
-    cs = ControlSystem(resolution)
+    # Start the Control System main loop
     cs.start()
     cs.set_state(1) # Set initial state to Idle
+
 
     cs.stop()

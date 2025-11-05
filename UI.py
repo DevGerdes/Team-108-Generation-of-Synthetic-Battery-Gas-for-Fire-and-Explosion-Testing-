@@ -8,8 +8,6 @@ import numpy as np
 import math
 import pandas as pd
 
-from Controls import cs
-
 class UI_Object(tk.Tk):
     ## Define all UI variables and build the layout
     def __init__(self):
@@ -25,8 +23,8 @@ class UI_Object(tk.Tk):
         self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP"]
 
         # Define graph names and variable names for overview display
-        self.graph_names = ["MFC 1 Response", "MFC 2 Response", "MFC 3 Response"]
-        self.graph_variable_names = ["Flow Rate (SLPM)", "Flow Rate (SLPM)", "Flow Rate (SLPM)"]
+        self.graph_names = ["Test Plan Preview", "MFC 1 Response", "MFC 2 Response", "MFC 3 Response"]
+        self.graph_variable_names = [["Composition Percents", "Heat Release Rate (kW)"],"Flow Rate (SLPM)", "Flow Rate (SLPM)", "Flow Rate (SLPM)"]
 
         self.window_nav_frame = tk.Frame(self, bg=STYLES["panel_bg"])
         self.window_nav_frame.grid(row=0, column=0, sticky="nsew")
@@ -50,6 +48,9 @@ class UI_Object(tk.Tk):
         self._build_window_nav()
         self._build_center_displays()
         self._build_bottom_buttons()
+
+        # Initialize connection to Control System
+        self.cs = None
 
     ######################
     ## Begin Build functions to make UI objects and screens, link to functions. Each called once. 
@@ -112,7 +113,7 @@ class UI_Object(tk.Tk):
 
         # Determine layout
         num_graphs = len(self.graph_names)
-        ncols = 3
+        ncols = 2
         nrows = math.ceil(num_graphs / ncols)
 
         # Matplotlib grid
@@ -124,17 +125,34 @@ class UI_Object(tk.Tk):
 
         for i, name in enumerate(self.graph_names):
             ax = axes[i]
-            (line,) = ax.plot([], [], marker="o")  # start blank
+
+            # Create empty line
+            (line,) = ax.plot([], [], marker="o")
             ax.set_title(name, fontsize=8)
             ax.set_xlabel("Time (s)")
             ax.set_ylabel(self.graph_variable_names[i])
-            self.graphs[name] = {"ax": ax, "line": line}
+
+            # If this is the Test Plan Overview graph, set up for multiple series + legend
+            if name == self.graph_names[0]:
+                ax.legend([], loc="upper right", fontsize=6, frameon=False)
+                self.graphs[name] = {"ax": ax, "line": None, "lines": []}
+            else:
+                self.graphs[name] = {"ax": ax, "line": line}
 
         # Hide unused subplots if total < nrows*ncols
         for j in range(len(self.graph_names), len(axes)):
             axes[j].axis("off")
 
-        fig.tight_layout()
+        # Adjust subplot spacing for better visual separation
+        fig.subplots_adjust(
+            left=0.07,   # widen left margin
+            right=0.95,  # widen right margin
+            top=0.92,    # add space above titles
+            bottom=0.08, # add space below x-axis labels
+            wspace=0.35, # horizontal spacing between plots
+            hspace=0.45  # vertical spacing between plots
+            )
+
 
         # Embed figure in Tkinter
         canvas = FigureCanvasTkAgg(fig, master=frame)
@@ -142,7 +160,7 @@ class UI_Object(tk.Tk):
         canvas.get_tk_widget().pack(fill="both", expand=True)
         self.canvas = canvas
 
-    
+
     def _build_terminal(self):
         lbl = tk.Label(self.terminal_frame, text="Terminal",
                        fg=STYLES["text"], bg=STYLES["panel_bg"],
@@ -178,14 +196,14 @@ class UI_Object(tk.Tk):
         if name == self.function_buttons[0]: # Start button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             try:
-                cs.set_state(2) # Set state to RUN TEST
+                self.cs.set_state(2) # Set state to RUN TEST
                 self.write_to_terminal("[INFO] Test started.")
             except Exception as e:
                 self.write_to_terminal(f"[ERROR] Could not start test: {e}")
         if name == self.function_buttons[1]: # Stop button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             try:
-                cs.set_state(1) # Set state to IDLE
+                self.cs.set_state(1) # Set state to IDLE
                 self.write_to_terminal("[INFO] Test stopped.")
             except Exception as e:
                 self.write_to_terminal(f"[ERROR] Could not stop test: {e}")
@@ -211,6 +229,70 @@ class UI_Object(tk.Tk):
     def update_indicators(self, values, colors):
         for i, lbl in enumerate(self.indicators):
             lbl.config(text=values[i], bg=colors[i])
+
+    def update_graph(self, graph_name, x_data=None, y_data=None):
+        """Update a specific graph by name with new data."""
+        global test_columns, test_plan
+
+        if graph_name not in self.graphs:
+            self.write_to_terminal(f"[ERROR] Graph '{graph_name}' not found.")
+            return
+
+        graph = self.graphs[graph_name]
+        ax = graph["ax"]
+
+        # Handle special case for Test Plan Overview
+        if graph_name == self.graph_names[0]:
+            ax.clear()
+            if not test_columns or not test_plan or len(test_plan) < 2:
+                ax.text(0.5, 0.5, "No Test Plan Loaded", color="gray",
+                        ha="center", va="center", transform=ax.transAxes)
+            else:
+                time_data = test_plan[0]
+                n_cols = len(test_columns)
+
+                # Primary axis (left)
+                for i, col_name in enumerate(test_columns[1:], start=1):
+                    # Skip 6th column for now (will go on right axis)
+                    if i == 6:
+                        continue
+                    y_data = test_plan[i]
+                    ax.plot(time_data, y_data, label=col_name)
+                ax.set_ylim([0,1])
+                ax.set_title(self.graph_names[0])
+                ax.set_xlabel(test_columns[0])
+                ax.set_ylabel(self.graph_variable_names[0][0])
+
+                # Secondary axis (right)
+                if n_cols > 6:
+                    ax2 = ax.twinx()
+                    y_data_secondary = test_plan[6]
+                    ax2.plot(time_data, y_data_secondary, color="orange", label=test_columns[6])
+                    ax2.set_ylabel(self.graph_variable_names[0][1])
+                    # Combine legends
+                    lines1, labels1 = ax.get_legend_handles_labels()
+                    lines2, labels2 = ax2.get_legend_handles_labels()
+                    ax2.legend(lines1 + lines2, labels1 + labels2,
+                            loc="upper right", fontsize=6, frameon=False)
+                else:
+                    ax.legend(loc="upper right", fontsize=6, frameon=False)
+
+            self.canvas.draw_idle()
+            return
+
+        # Normal case: update existing single-line graph
+        if "line" not in graph or graph["line"] is None:
+            self.write_to_terminal(f"[ERROR] Graph '{graph_name}' has no line object.")
+            return
+
+        line = graph["line"]
+        line.set_data(x_data, y_data)
+        ax.relim()
+        ax.autoscale_view()
+        self.canvas.draw_idle()
+
+
+
 
     def load_and_interpolate_excel(self,resolution=0.1):
         global valid_titles, test_columns, test_plan
@@ -282,6 +364,8 @@ class UI_Object(tk.Tk):
         self.write_to_terminal(f"Columns: {', '.join(column_titles)}")
         test_columns = column_titles
         test_plan = interpolated_data
+
+        self.update_graph(self.graph_names[0], new_time, interpolated_data[1])  # Example: update first data column
 
     def print_variables(self):
         self.write_to_terminal(f"Test Columns: {test_columns}")

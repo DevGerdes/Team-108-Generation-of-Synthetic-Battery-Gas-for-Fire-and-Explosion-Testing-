@@ -9,17 +9,18 @@ import math
 import pandas as pd
 import threading
 
-from UI import UI_Object
 
 class ControlSystem:
-    def __init__(self):
+    def __init__(self,resolution):
         self.running = False              # Thread control flag
         self.thread = None                # Worker thread reference
+        self.resolution = resolution      # Loop resolution in seconds
+        # Initialize conection to UI
+        self.UI = None
 
     # ---------- Core Loop ---------- #
     def _loop(self):
         global STATE
-        global resolution
         while self.running:
             if STATE == 0: # Emergency Stop
                 self.emergency_stop()
@@ -29,7 +30,7 @@ class ControlSystem:
                 self.run_test()
             else:
                 print(f"[STATE: UNKNOWN] No handler for state '{STATE}'")
-        time.sleep(resolution)
+        time.sleep(self.resolution)
 
 
     # ---------- Example State Functions ---------- #
@@ -49,7 +50,7 @@ class ControlSystem:
             self.running = True
             self.thread = threading.Thread(target=self._loop, daemon=True)
             self.thread.start()
-            Gas_Mixing_UI.write_to_terminal("[ControlSystem] Started main loop.")
+            self.UI.write_to_terminal("[ControlSystem] Started main loop.")
 
     def stop(self):
         """Stops the threaded control system loop."""
