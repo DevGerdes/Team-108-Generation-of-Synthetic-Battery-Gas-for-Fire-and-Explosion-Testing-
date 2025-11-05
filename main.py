@@ -18,12 +18,6 @@ import pandas as pd
 from UI import UI_Object
 from Controls import ControlSystem
 
-### Define global variables
-# State change definitions
-#  0 = Emergency Stop
-#  1 = Idle
-# 2 = Run Test
-STATE = 0  # This is the global state variable that will be shared
 
 """Design Variables
 The given value here is a default value but will change as program runs

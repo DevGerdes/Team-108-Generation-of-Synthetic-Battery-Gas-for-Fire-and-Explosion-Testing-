@@ -17,31 +17,36 @@ class ControlSystem:
         self.resolution = resolution      # Loop resolution in seconds
         # Initialize conection to UI
         self.UI = None
+        ### Define global variables
+        #self.STATE change definitions
+        #  0 = Emergency Stop
+        #  1 = Idle
+        # 2 = Run Test
+        self.STATE = 0  # This is the globalself.STATE variable that will be shared
 
     # ---------- Core Loop ---------- #
     def _loop(self):
-        global STATE
         while self.running:
-            if STATE == 0: # Emergency Stop
+            if self.STATE == 0: # Emergency Stop
                 self.emergency_stop()
-            elif STATE == 1: # Idle
+            elif self.STATE == 1: # Idle
                 self.idle()
-            elif STATE == 2: # Run Test
+            elif self.STATE == 2: # Run Test
                 self.run_test()
             else:
-                print(f"[STATE: UNKNOWN] No handler for state '{STATE}'")
+                print(f"[STATE: UNKNOWN] No handler forself.STATE '{self.STATE}'")
         time.sleep(self.resolution)
 
 
-    # ---------- Example State Functions ---------- #
+    # ---------- Exampleself.STATE Functions ---------- #
     def emergency_stop(self):
-        print("[STATE: IDLE] System is idle...")
+        self.UI.write_to_terminal("[STATE: IDLE] System is idle...")
 
     def idle(self):
-        print("[STATE: RUNNING] System is running process...")
+        self.UI.write_to_terminal("[STATE: RUNNING] System is running process...")
 
     def run_test(self):
-        print("[STATE: ERROR] System encountered an error!")
+        self.UI.write_to_terminal("[STATE: ERROR] System encountered an error!")
 
     # ---------- Control Methods ---------- #
     def start(self):
@@ -58,28 +63,10 @@ class ControlSystem:
             self.running = False
             if self.thread:
                 self.thread.join(timeout=1)
-            print("[ControlSystem] Stopped main loop.")
+            self.UI.write_to_terminal("[ControlSystem] Stopped main loop.")
 
     def set_state(self, new_state):
-        global STATE
-        """Changes the system state dynamically."""
-        print(f"[ControlSystem] State changed to '{new_state}'")
-        STATE = new_state
+        """Changes the systemself.STATE dynamically."""
+        self.UI.write_to_terminal(f"[ControlSystem]self.STATE changed to '{new_state}'")
+        self.STATE = new_state
 
-
-# ---------- Example usage ---------- #
-STATE = 0
-resolution = .2
-
-if __name__ == "__main__":
-    cs = ControlSystem(resolution=0.2)
-    cs.start()
-
-    time.sleep(1)
-    cs.set_state("RUNNING")
-    time.sleep(1)
-    cs.set_state("ERROR")
-    time.sleep(1)
-    cs.set_state("IDLE")
-
-    cs.stop()
