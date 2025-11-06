@@ -15,8 +15,9 @@ class ControlSystem:
         self.running = False              # Thread control flag
         self.thread = None                # Worker thread reference
         self.resolution = resolution      # Loop resolution in seconds
-        # Initialize conection to UI
+        # Initialize conection to UI and data handler
         self.UI = None
+        self.dh = None
         ### Define global variables
         #self.STATE change definitions
         #  0 = Emergency Stop

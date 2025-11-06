@@ -52,6 +52,9 @@ class UI_Object(tk.Tk):
 
         # Initialize connection to Control System
         self.cs = None
+        self.dh = None
+
+        # Close protocol
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def on_close(self):
