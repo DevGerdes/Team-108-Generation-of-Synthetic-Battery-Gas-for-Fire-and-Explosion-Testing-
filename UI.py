@@ -21,6 +21,7 @@ class UI_Object(tk.Tk):
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
         self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP"]
+        self.indicators = ["State","Indicator 1","Indicator 2"]
 
         # Define graph names and variable names for overview display
         self.graph_names = ["Test Plan Preview", "MFC 1 Response", "MFC 2 Response", "MFC 3 Response"]
@@ -51,6 +52,19 @@ class UI_Object(tk.Tk):
 
         # Initialize connection to Control System
         self.cs = None
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def on_close(self):
+        """Ensure clean shutdown when the window is closed."""
+        try:
+            if self.cs is not None:
+                # Optionally stop threads, close connections, etc.
+                self.cs.set_state(0)
+        except Exception:
+            pass
+        self.destroy()
+        self.quit()
+
 
     ######################
     ## Begin Build functions to make UI objects and screens, link to functions. Each called once. 
@@ -104,12 +118,14 @@ class UI_Object(tk.Tk):
         indicator_frame = tk.Frame(frame, bg=STYLES["bg"])
         indicator_frame.pack(side="top", pady=10)
 
-        self.indicators = []
-        for i in range(3):
-            lbl = tk.Label(indicator_frame, text=f"Indicator {i+1}",
-                        fg=STYLES["text"], bg="green", font=("Segoe UI", 14, "bold"), width=20)
+        # Create indicator labels and store by name
+        self.indicator_widgets = {}
+        for name in self.indicators:
+            lbl = tk.Label(indicator_frame, text=name,
+                        fg=STYLES["text"], bg="green",
+                        font=("Segoe UI", 14, "bold"), width=20)
             lbl.pack(side="left", padx=10)
-            self.indicators.append(lbl)
+            self.indicator_widgets[name] = lbl
 
         # Determine layout
         num_graphs = len(self.graph_names)
@@ -119,7 +135,6 @@ class UI_Object(tk.Tk):
         # Matplotlib grid
         fig, axes = plt.subplots(nrows, ncols, figsize=(8, 3 * nrows))
         axes = axes.flatten() if num_graphs > 1 else [axes]
-
         self.fig = fig
         self.graphs = {}
 
@@ -160,7 +175,6 @@ class UI_Object(tk.Tk):
         canvas.get_tk_widget().pack(fill="both", expand=True)
         self.canvas = canvas
 
-
     def _build_terminal(self):
         lbl = tk.Label(self.terminal_frame, text="Terminal",
                        fg=STYLES["text"], bg=STYLES["panel_bg"],
@@ -182,7 +196,7 @@ class UI_Object(tk.Tk):
                             relief="flat", padx=12, pady=8)
                 b.pack(side="left", padx=8, pady=8)
 
-    ##################
+    #######################
     ## Begin function handling for UI actions
     def write_to_terminal(self, text, timestamp=True):
         ts = f"[{time.strftime('%H:%M:%S')}] " if timestamp else ""
@@ -215,6 +229,8 @@ class UI_Object(tk.Tk):
             self.print_variables()
         if name == self.function_buttons[4]: # EMERGENCY STOP button
             self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.cs.set_state(0) # Set state to EMERGENCY STOP
+            self.update_indicators()
     
     def show_display(self, name):
         # Handle navigation button presses to switch center display
@@ -226,9 +242,26 @@ class UI_Object(tk.Tk):
         for b in self.center_buttons:
             b.configure(bg=STYLES["accent"] if b["text"] == name else STYLES["button_bg"])
 
-    def update_indicators(self, values, colors):
-        for i, lbl in enumerate(self.indicators):
-            lbl.config(text=values[i], bg=colors[i])
+    def update_indicators(self, name):
+        """Update one indicator by name"""
+        if name == self.indicators[0]: # Update State indicator
+            if self.cs.STATE == 0:
+                color = "red"
+                text = "EMERGENCY STOP"
+            elif self.cs.STATE == 1:
+                color = "blue"
+                text = "IDLE"
+            elif self.cs.STATE == 2:
+                color = "green"
+                text = "RUNNING"
+            self.indicator_widgets[name].config(text=text)
+            self.indicator_widgets[name].config(bg=color)
+        elif name == self.indicators[1]: # Update Indicator 1
+            pass
+        elif name == self.indicators[2]: # Update Indicator 2
+            pass
+        else:
+            self.write_to_terminal(f"[ERROR] Indicator '{name}' not found.")
 
     def update_graph(self, graph_name, x_data=None, y_data=None):
         """Update a specific graph by name with new data."""
@@ -290,9 +323,6 @@ class UI_Object(tk.Tk):
         ax.relim()
         ax.autoscale_view()
         self.canvas.draw_idle()
-
-
-
 
     def load_and_interpolate_excel(self,resolution=0.1):
         global valid_titles, test_columns, test_plan

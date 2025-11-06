@@ -106,6 +106,7 @@ if __name__ == "__main__":
     # Start the Control System main loop
     cs.start()
     cs.set_state(1) # Set initial state to Idle
+    Gas_Mixing_UI.update_indicators(name=Gas_Mixing_UI.indicators[0])  # Initialize state indicator
 
 
     cs.stop()

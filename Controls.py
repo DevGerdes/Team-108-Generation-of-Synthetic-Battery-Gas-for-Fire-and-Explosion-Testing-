@@ -22,7 +22,7 @@ class ControlSystem:
         #  0 = Emergency Stop
         #  1 = Idle
         # 2 = Run Test
-        self.STATE = 0  # This is the globalself.STATE variable that will be shared
+        self.STATE = 1  # Default to Idle state  
 
     # ---------- Core Loop ---------- #
     def _loop(self):
@@ -37,8 +37,6 @@ class ControlSystem:
                 print(f"[STATE: UNKNOWN] No handler forself.STATE '{self.STATE}'")
         time.sleep(self.resolution)
 
-
-    # ---------- Exampleself.STATE Functions ---------- #
     def emergency_stop(self):
         self.UI.write_to_terminal("[STATE: IDLE] System is idle...")
 
@@ -66,7 +64,8 @@ class ControlSystem:
             self.UI.write_to_terminal("[ControlSystem] Stopped main loop.")
 
     def set_state(self, new_state):
-        """Changes the systemself.STATE dynamically."""
-        self.UI.write_to_terminal(f"[ControlSystem]self.STATE changed to '{new_state}'")
+        """Changes the system self.STATE dynamically."""
+        self.UI.write_to_terminal(f"[ControlSystem] STATE changed to '{new_state}'")
         self.STATE = new_state
+        self.UI.update_indicators(name=self.UI.indicators[0])
 
