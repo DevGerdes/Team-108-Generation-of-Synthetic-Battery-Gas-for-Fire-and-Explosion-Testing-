@@ -17,6 +17,7 @@ import pandas as pd
 # Import functions or objects from other files
 from UI import UI_Object
 from Controls import ControlSystem
+from data_handler import Data_Handler
 
 
 """Design Variables
@@ -96,8 +97,14 @@ if __name__ == "__main__":
     # Create UI and Controls System objects, then link them
     Gas_Mixing_UI = UI_Object()
     cs = ControlSystem(resolution)
+    dh = Data_Handler()
+    
     Gas_Mixing_UI.cs = cs
+    Gas_Mixing_UI.dh = dh
+    dh.UI = Gas_Mixing_UI
     cs.UI = Gas_Mixing_UI
+    dh.cs = cs
+    cs.dh = dh
 
     # Start the UI main loop
     Gas_Mixing_UI.write_to_terminal("App started.")

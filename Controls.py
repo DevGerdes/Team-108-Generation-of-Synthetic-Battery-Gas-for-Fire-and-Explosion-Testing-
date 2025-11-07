@@ -39,13 +39,15 @@ class ControlSystem:
         time.sleep(self.resolution)
 
     def emergency_stop(self):
-        self.UI.write_to_terminal("[STATE: IDLE] System is idle...")
+        self.UI.write_to_terminal("[STATE: EMERGENCY STOP] System or user detected emergency conditions...")
 
     def idle(self):
-        self.UI.write_to_terminal("[STATE: RUNNING] System is running process...")
+        self.UI.write_to_terminal("[STATE: IDLE System is standing by...")
 
     def run_test(self):
-        self.UI.write_to_terminal("[STATE: ERROR] System encountered an error!")
+        self.UI.write_to_terminal("[STATE: RUNNING] Running test...")
+
+        
 
     # ---------- Control Methods ---------- #
     def start(self):
