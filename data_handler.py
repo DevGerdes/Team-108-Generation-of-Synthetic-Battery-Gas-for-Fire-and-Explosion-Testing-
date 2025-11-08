@@ -16,6 +16,13 @@ class Data_Handler:
         """
         Initialize serial connection and start communication thread.
         """
+        #### Emergency condition values
+        self.minmax_mfc_setpoint = [0,10] # SLPM
+        self.minmax_mfc_response = [0,15] # SLPM
+        self.max_pressure1 = 100 # psi
+        self.warning_threshold = .9 # % of value
+
+
         # data saving parameters 
         # mfc_history = [ [time1,[mfc1_response,mfc2_response,...]] , [time2,[mfc1_response,mfc2_response,...]] , ...]
         self.setpoint_history = []
@@ -204,7 +211,15 @@ class Data_Handler:
         self.sim_mfcs.clear()  # now it's []
         gc.collect()
 
+    def check_emergency_conditions(self):
+        tests = {
+        "MFC setpoint": (self.dh.mfc_setpoint[-1], *self.minmax_mfc_setpoint),
+        "MFC response": (self.dh.mfc_response[-1], *self.minmax_mfc_response),
+        "Pressure 1": (self.dh.pressure1, 0, self.max_pressure1 * self.warning_threshold)
+    }
 
+    violations = [name for name, (val, low, high) in tests.items() if not (low <= val <= high)]
 
-
-
+    if violations:
+        print("Warning:", ", ".join(violations))
+        self.trigger_warning()

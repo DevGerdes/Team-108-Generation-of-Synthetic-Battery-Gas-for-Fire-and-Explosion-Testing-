@@ -98,7 +98,7 @@ if __name__ == "__main__":
     Gas_Mixing_UI = UI_Object()
     cs = ControlSystem(resolution)
     dh = Data_Handler()
-    
+
     Gas_Mixing_UI.cs = cs
     Gas_Mixing_UI.dh = dh
     dh.UI = Gas_Mixing_UI
@@ -109,11 +109,3 @@ if __name__ == "__main__":
     # Start the UI main loop
     Gas_Mixing_UI.write_to_terminal("App started.")
     Gas_Mixing_UI.mainloop()
-
-    # Start the Control System main loop
-    cs.start()
-    cs.set_state(1) # Set initial state to Idle
-    Gas_Mixing_UI.update_indicators(name=Gas_Mixing_UI.indicators[0])  # Initialize state indicator
-
-
-    cs.stop()

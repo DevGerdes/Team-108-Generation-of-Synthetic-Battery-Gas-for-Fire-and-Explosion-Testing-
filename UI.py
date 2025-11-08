@@ -79,12 +79,17 @@ class UI_Object(tk.Tk):
         # Close protocol
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
+        # Start the Control System main loop
+        self.cs.start()
+        self.cs.set_state(1) # Set initial state to Idle
+        self.update_indicators(self.indicators[0])  # Initialize state indicator
+
     def on_close(self):
         """Ensure clean shutdown when the window is closed."""
         try:
             if self.cs is not None:
                 # Optionally stop threads, close connections, etc.
-                self.cs.set_state(0)
+                self.cs.set_state(0) # Set to emergency conditions to shutdown system if UI closed
         except Exception:
             pass
         self.destroy()

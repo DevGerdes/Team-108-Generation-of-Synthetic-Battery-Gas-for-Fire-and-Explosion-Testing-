@@ -47,9 +47,11 @@ class ControlSystem:
     def run_test(self):
         self.UI.write_to_terminal("[STATE: RUNNING] Running test...")
 
-        
+        self.dh.check_emergency_conditions()
+        if self.STATE == 0:
+            return
 
-    # ---------- Control Methods ---------- #
+    # Control Methods
     def start(self):
         """Starts the threaded control system loop."""
         if not self.running:
