@@ -28,28 +28,17 @@ class ControlSystem:
     # ---------- Core Loop ---------- #
     def _loop(self):
         while self.running:
-            if self.STATE == 0: # Emergency Stop
-                self.emergency_stop()
-            elif self.STATE == 1: # Idle
-                self.idle()
-            elif self.STATE == 2: # Run Test
-                self.run_test()
-            else:
-                print(f"[STATE: UNKNOWN] No handler forself.STATE '{self.STATE}'")
-        time.sleep(self.resolution)
-
-    def emergency_stop(self):
-        self.UI.write_to_terminal("[STATE: EMERGENCY STOP] System or user detected emergency conditions...")
-
-    def idle(self):
-        self.UI.write_to_terminal("[STATE: IDLE System is standing by...")
-
-    def run_test(self):
-        self.UI.write_to_terminal("[STATE: RUNNING] Running test...")
-
-        self.dh.check_emergency_conditions()
-        if self.STATE == 0:
-            return
+            oldstate = self.STATE
+            if not self.STATE == oldstate: # If state has changed
+                if self.STATE == 0: # Emergency Stop
+                    self.emergency_stop()
+                elif self.STATE == 1: # Idle
+                    self.idle()
+                elif self.STATE == 2: # Run Test
+                    self.run_test()
+                else:
+                    print(f"[STATE: UNKNOWN] No handler forself.STATE '{self.STATE}'")
+            time.sleep(self.resolution)
 
     # Control Methods
     def start(self):
@@ -74,3 +63,19 @@ class ControlSystem:
         self.STATE = new_state
         self.UI.update_indicators(name=self.UI.indicators[0])
 
+    ######### State specific logic
+
+    def emergency_stop(self):
+        self.UI.write_to_terminal("[STATE: EMERGENCY STOP] System or user detected emergency conditions...")
+
+    def idle(self):
+        self.UI.write_to_terminal("[STATE: IDLE System is standing by...")
+
+    def run_test(self):
+        self.UI.write_to_terminal("[STATE: RUNNING] Running test...")
+        time.sleep(self.resolution)
+
+        while self.STATE == 2:
+            self.dh.check_emergency_conditions()
+            if self.STATE == 0:
+                return

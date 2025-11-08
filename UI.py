@@ -79,10 +79,6 @@ class UI_Object(tk.Tk):
         # Close protocol
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        # Start the Control System main loop
-        self.cs.start()
-        self.cs.set_state(1) # Set initial state to Idle
-        self.update_indicators(self.indicators[0])  # Initialize state indicator
 
     def on_close(self):
         """Ensure clean shutdown when the window is closed."""
@@ -475,7 +471,7 @@ class UI_Object(tk.Tk):
         self.test_columns = column_titles
         self.test_plan = interpolated_data
 
-        self.update_graph(self.graph_names[0], new_time, interpolated_data[1])  # Example: update first data column
+        self.update_graphs()  # Example: update first data column
 
     def print_variables(self):
         self.write_to_terminal(f"Test Columns: {self.test_columns}")

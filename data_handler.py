@@ -212,14 +212,16 @@ class Data_Handler:
         gc.collect()
 
     def check_emergency_conditions(self):
+        pass
+
         tests = {
         "MFC setpoint": (self.dh.mfc_setpoint[-1], *self.minmax_mfc_setpoint),
         "MFC response": (self.dh.mfc_response[-1], *self.minmax_mfc_response),
         "Pressure 1": (self.dh.pressure1, 0, self.max_pressure1 * self.warning_threshold)
     }
 
-    violations = [name for name, (val, low, high) in tests.items() if not (low <= val <= high)]
+        violations = [name for name, (val, low, high) in tests.items() if not (low <= val <= high)]
 
-    if violations:
-        print("Warning:", ", ".join(violations))
-        self.trigger_warning()
+        if violations:
+            print("Warning:", ", ".join(violations))
+            self.cs.STATE = 0

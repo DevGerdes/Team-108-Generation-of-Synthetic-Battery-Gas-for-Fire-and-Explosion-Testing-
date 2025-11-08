@@ -57,36 +57,7 @@ A_nozzle = .01 # Nozzle exit area [m^2]
 
 
 
-"""MFC and Data Collection Variables"""
-# Controls default variables
-MFC_P = [1,1,1,1,1]  
-MFC_I = [0.0, 0.0, 0.0, 0.0, 0.0]  
-MFC_D = [0.0, 0.0, 0.0, 0.0, 0.0]
-tau = [0.5, 0.5, 0.5, 0.5, 0.5]  # Time constant for each MFC [sec]
-MFC_ON = [1, 1, 0, 0, 0] # [1 = ON, 0 = OFF]
-MFC_SETPOINT = [0.0, 0.0, 0.0, 0.0, 0.0]
-MFC_RESPONSE = [0.0, 0.0, 0.0, 0.0, 0.0]
-# Data plotting and saving variables
-MFC_1SETPOINT_HISTORY = []  # 5 lists for 5 MFC's
-MFC_1_RESPONSE_HISTORY = []  # 5 lists for 5 MFC's
-MFC_TIME_HISTORY = []
 
-PRESSURE_SENOR_1_HISTORY = []
-PRESSURE_SENOR_2_HISTORY = []
-
-"""UI Variables"""
-STYLES = {
-    "bg": "#f0f0f0",
-    "panel_bg": "#d9d9d9",
-    "text": "#000000",
-    "button_bg": "#e0e0e0",
-    "button_active_bg": "#c0c0c0",
-    "terminal_bg": "#1e1e1e",
-    "terminal_fg": "#d4d4d4"
-}
-valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4"]
-test_columns = []
-test_plan = []
 
 """Controls Variables"""
 resolution = .2 # rate of controls loop [sec]
@@ -108,4 +79,11 @@ if __name__ == "__main__":
 
     # Start the UI main loop
     Gas_Mixing_UI.write_to_terminal("App started.")
+
+
+    # Start the Control System main loop
+    cs.start()
+    Gas_Mixing_UI.update_indicators(Gas_Mixing_UI.indicators[0])  # Initialize state indicator
+
     Gas_Mixing_UI.mainloop()
+
