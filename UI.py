@@ -43,6 +43,12 @@ class UI_Object(tk.Tk):
         self.graph_names = self.mfc_graphs+self.sensor_graphs
         self.graph_variable_names = [["Composition Percents", "Heat Release Rate (kW)"],"Flow Rate (SLPM)", "Flow Rate (SLPM)", "Pressure (psi)"]
 
+        # Variables to report for the Live values screen
+        # Each element cooresponds to a column of values
+        self.report_variables = [["MFC 1 Setpoint: ", "MFC 2 Setpoint: ", "MFC 3 Setpoint: ", "MFC 4 Setpoint: ", "MFC 5 Setpoint: "],
+            ["MFC 1 Response: ","MFC 2 Response: ","MFC 3 Response: ","MFC 4 Response: ","MFC 5 Response: "],                  
+            ["Pressure Sensor 1: ","Pressure Sensor 2: ", "Pressure Sensor 3: "]]
+
         # Variables for loading in test data
         self.valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4"]
         self.test_columns = []
@@ -133,6 +139,8 @@ class UI_Object(tk.Tk):
 
         # Build specific displays
         self._build_overview_display()
+        self._build_values_display()
+        self._build_troubleshooting()
 
         # Show default display on start
         self.show_display(self.main_display_names[0])
@@ -199,6 +207,82 @@ class UI_Object(tk.Tk):
         canvas.draw()
         canvas.get_tk_widget().pack(fill="both", expand=True)
         self.canvas = canvas
+
+    def _build_values_display(self):
+        """Build a matrix of blank labels for report variables.
+        Each inner list in self.report_variables defines one column of variable names.
+        """
+
+        frame = self.displays.get("Live Values")
+        if frame is None:
+            self.write_to_terminal("[ERROR] 'Live Values' display not found.")
+            return
+
+        container = tk.Frame(frame, bg=self.styles["bg"])
+        container.pack(fill="both", expand=True, pady=10)
+
+        self.value_labels = {}
+
+        # Determine max number of rows (longest column)
+        max_rows = max(len(col) for col in self.report_variables)
+
+        for c, col_vars in enumerate(self.report_variables):
+            for r, var in enumerate(col_vars):
+                lbl_name = tk.Label(container, text=var,
+                                    fg=self.styles["text"], bg=self.styles["bg"],
+                                    font=("Segoe UI", 11, "bold"), anchor="e", width=18)
+                lbl_name.grid(row=r, column=c*2, padx=(10,2), pady=4, sticky="e")
+
+                lbl_val = tk.Label(container, text="—",
+                                   fg=self.styles["muted"], bg=self.styles["bg"],
+                                   font=("Segoe UI", 11), anchor="w", width=10)
+                lbl_val.grid(row=r, column=c*2 + 1, padx=(2,10), pady=4, sticky="w")
+
+                self.value_labels[var] = lbl_val
+
+        # Row expansion based on the longest column
+        for i in range(max_rows):
+            container.grid_rowconfigure(i, weight=1)
+
+    def _build_troubleshooting(self):
+        """Build the Troubleshooting and Best Practices display from Troubleshooting_Info.txt."""
+
+        frame = self.displays.get("TroubleShooting and Best Practices")
+        if frame is None:
+            self.write_to_terminal("[ERROR] 'TroubleShooting and Best Practices' display not found.")
+            return
+
+        container = tk.Frame(frame, bg=self.styles["bg"])
+        container.pack(fill="both", expand=True, padx=20, pady=20)
+
+
+
+        # Try loading the troubleshooting info from file
+        try:
+            with open("Troubleshooting_Info.txt", "r", encoding="utf-8") as f:
+                self.troubleshooting_text = f.read()
+        except FileNotFoundError:
+            self.troubleshooting_text = "[INFO] Troubleshooting_Info.txt not found.\n\n" \
+                                        "Create this file in the program directory to display information here."
+        except Exception as e:
+            self.troubleshooting_text = f"[ERROR] Unable to load troubleshooting info: {e}"
+
+        # Create the readonly text box
+        text_box = tk.Text(container, wrap="word",
+                           bg=self.styles["panel_bg"], fg=self.styles["text"],
+                           insertbackground=self.styles["text"], relief="flat",
+                           font=("Segoe UI", 11), height=25)
+        text_box.insert("1.0", self.troubleshooting_text)
+        text_box.config(state="disabled")
+        text_box.pack(fill="both", expand=True)
+
+        scrollbar = tk.Scrollbar(container, command=text_box.yview)
+        text_box.config(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+
+        self.troubleshooting_box = text_box
+
+
 
 
     def _build_terminal(self):

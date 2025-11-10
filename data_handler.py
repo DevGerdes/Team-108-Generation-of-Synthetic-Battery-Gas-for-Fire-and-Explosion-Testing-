@@ -43,7 +43,7 @@ class Data_Handler:
         # self.data_out = [target_pressure, valve_state, setpoint]
         self.data_out = []
         self.received_data_lists = {}
-
+    
         # simulation variables as needed
         self.do_sim = False
         self.sim_mfcs = []
