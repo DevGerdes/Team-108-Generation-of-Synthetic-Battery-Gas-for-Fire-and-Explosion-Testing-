@@ -114,7 +114,7 @@ def convert_testplan_to_MFC_flows():
     plot_test_data("User Graph","Percent of Composition") # What the user will see
     ############## YOUR CODE HERE
     # May want to convert test_plan to columns rather than current format
-    # data = list(zip(*test_plan))
+    # data = list(zip(*test_plan)) # [time, var1, var2, var3, ...]
     # time = data[0]
 
 
