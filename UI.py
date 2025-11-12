@@ -51,8 +51,8 @@ class UI_Object(tk.Tk):
 
         # Variables for loading in test data
         self.valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4"]
-        self.test_columns = []
-        self.test_plan = []
+        self.test_columns = [] # [Title1,Title2,Title3,...]
+        self.test_plan = [] # [[Time1, Val1.1, Val2.1, ...], [Time2, Val1.2, Val2.2,...], ...]
 
         # Start building the display
         self.window_nav_frame = tk.Frame(self, bg=self.styles["panel_bg"])
@@ -251,12 +251,8 @@ class UI_Object(tk.Tk):
         if frame is None:
             self.write_to_terminal("[ERROR] 'TroubleShooting and Best Practices' display not found.")
             return
-
         container = tk.Frame(frame, bg=self.styles["bg"])
         container.pack(fill="both", expand=True, padx=20, pady=20)
-
-
-
         # Try loading the troubleshooting info from file
         try:
             with open("Troubleshooting_Info.txt", "r", encoding="utf-8") as f:
@@ -281,9 +277,6 @@ class UI_Object(tk.Tk):
         scrollbar.pack(side="right", fill="y")
 
         self.troubleshooting_box = text_box
-
-
-
 
     def _build_terminal(self):
         lbl = tk.Label(self.terminal_frame, text="Terminal",
