@@ -34,7 +34,7 @@ class UI_Object(tk.Tk):
         # Define names for main displays and buttons
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
-        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP"]
+        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect"]
         self.indicators = ["State","Indicator 1","Indicator 2"]
 
         # Define graph names and variable names for overview display
@@ -334,6 +334,9 @@ class UI_Object(tk.Tk):
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.cs.set_state(0) # Set state to EMERGENCY STOP
             self.update_indicators()
+        if name == self.function_buttons[5]: # Connect button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.dh.connect_to_aurduino()
     
     def show_display(self, name):
         # Handle navigation button presses to switch center display

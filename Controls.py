@@ -37,7 +37,9 @@ class ControlSystem:
                 elif self.STATE == 2: # Run Test
                     self.run_test()
                 else:
-                    print(f"[STATE: UNKNOWN] No handler forself.STATE '{self.STATE}'")
+                    print(f"[STATE: UNKNOWN] No handler for self.STATE '{self.STATE}'")
+                    self.STATE = 0
+                    self.emergency_stop()
             time.sleep(self.resolution)
 
     # Control Methods
