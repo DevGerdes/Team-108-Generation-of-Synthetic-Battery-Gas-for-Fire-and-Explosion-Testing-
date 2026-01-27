@@ -72,12 +72,38 @@ class ControlSystem:
 
     def idle(self):
         self.UI.write_to_terminal("[STATE: IDLE System is standing by...")
+            
 
     def run_test(self):
         self.UI.write_to_terminal("[STATE: RUNNING] Running test...")
-        time.sleep(self.resolution)
 
-        while self.STATE == 2:
+        # Grab interpolated schedule
+        plan = self.UI.test_plan
+        t_vec = plan[0]          # time axis
+        data_cols = plan[1:]    # signals
+        if len(t_vec) == 0:
+            self.UI.write_to_terminal("ERROR: Empty test plan")
+            return
+        test_start = time.time()
+        idx = 0                 # index into test_plan time vector
+
+        # Run until stopped or end of test
+        while self.STATE == 2 and idx < len(t_vec):
             self.dh.check_emergency_conditions()
-            if self.STATE == 0:
-                return
+            if self.STATE != 2:
+                break
+
+            # Elapsed test time
+            t_now = time.time() - test_start
+            # Advance index while current test time exceeds scheduled time
+            while idx < len(t_vec) and t_now >= t_vec[idx]:
+
+                data = []
+                for col_i in range(len(data_cols) - 1):
+                    data.append(data_cols[col_i][idx])
+
+                self.dh.send_data(data)
+                idx += 1
+
+
+            time.sleep(self.resolution)

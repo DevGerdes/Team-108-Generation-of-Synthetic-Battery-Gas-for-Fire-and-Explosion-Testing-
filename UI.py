@@ -313,6 +313,9 @@ class UI_Object(tk.Tk):
         if name == self.function_buttons[0]: # Start button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             try:
+                if self.test_plan == []:
+                    self.write_to_terminal("[ERROR] No test plan loaded. Cannot start test.")
+                    return
                 self.cs.set_state(2) # Set state to RUN TEST
                 self.write_to_terminal("[INFO] Test started.")
             except Exception as e:
@@ -336,7 +339,7 @@ class UI_Object(tk.Tk):
             self.update_indicators()
         if name == self.function_buttons[5]: # Connect button
             self.write_to_terminal(f"[ACTION] {name} pressed")
-            self.dh.connect_to_aurduino()
+            self.dh.connect_to_arduino()
     
     def show_display(self, name):
         # Handle navigation button presses to switch center display

@@ -1,4 +1,5 @@
-import time
+test = [1]
 
 
-print(time.time())
+if test is not None:
+    print("Test is not None")
