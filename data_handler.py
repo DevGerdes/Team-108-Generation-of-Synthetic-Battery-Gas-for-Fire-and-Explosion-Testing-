@@ -89,8 +89,12 @@ class Data_Handler:
                 self.UI.write_to_terminal(f"Detected Arduino-like device on {port.device} ({port.description})")
                 # Verify communication
                 try:
-                    with serial.Serial(port.device, self.baudrate, self.timeout):
-                        self.UI.write_to_terminal(f"Response from {port.device}")
+                    with serial.Serial(
+                            port=port.device,
+                            baudrate=self.baudrate,
+                            timeout=self.timeout
+                        ) as ser:
+                        self.UI.write_to_terminal(f"Opened {port.device}")
                         return port.device
                 except (OSError, serial.SerialException):
                     continue
@@ -131,6 +135,7 @@ class Data_Handler:
     def send_data(self,new_setpoints):
         """Send the list of data values to Arduino."""
         if self.Arduino_connected == False: # check if arduino connected
+            self.UI.write_to_terminal("[Data_Handler] Cannot send data, Arduino not connected.")
             return
 
         try:
@@ -158,7 +163,6 @@ class Data_Handler:
             # self.sensor_readings.append(value1)
             # self.timestamps.append(time.time())
             # ---------------------------------------
-            # (Leave the above section blank until you decide what to do)
         except Exception as e:
             self.UI.write_to_terminal(f"Error reading data: {e}")
 
@@ -239,6 +243,6 @@ class Data_Handler:
                     violations.append(f"{test[0]} not in desired state")
             else:
                 self.UI.write_to_terminal(f"Unknown test type '{test[1]}' for {test[0]}")
-        if violations:
+        if violations != []:
             print("Warning:", ", ".join(violations))
             self.cs.STATE = 0
