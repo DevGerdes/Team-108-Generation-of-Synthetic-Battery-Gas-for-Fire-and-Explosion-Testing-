@@ -36,7 +36,7 @@ class Data_Handler:
         self.num_mfcs = 0
 
         # Variables to send and receive
-        # self.data_out = [target_pressure, valve_state, setpoint]
+        # self.data_out = [MFC1_setpoint, MFC2_setpoint,..., Main]
         self.data_out = []
         self.received_data_lists = {}
     

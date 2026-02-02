@@ -11,10 +11,10 @@ import threading
 
 
 class ControlSystem:
-    def __init__(self,resolution):
+    def __init__(self):
         self.running = False              # Thread control flag
         self.thread = None                # Worker thread reference
-        self.resolution = resolution      # Loop resolution in seconds
+        self.resolution = .2      # Loop resolution in seconds
         # Initialize conection to UI and data handler
         self.UI = None
         self.dh = None
@@ -99,7 +99,7 @@ class ControlSystem:
             while idx < len(t_vec) and t_now >= t_vec[idx]:
 
                 data = []
-                for col_i in range(len(data_cols) - 1):
+                for col_i in range(1,len(data_cols) - 1): # Skip time column
                     data.append(data_cols[col_i][idx])
 
                 self.dh.send_data(data)
