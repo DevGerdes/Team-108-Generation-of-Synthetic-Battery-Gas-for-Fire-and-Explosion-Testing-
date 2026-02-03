@@ -19,7 +19,7 @@ class Data_Handler:
         """
 
         # data saving parameters 
-        # mfc_history = [ [time1,[mfc1_response,mfc2_response,...]] , [time2,[mfc1_response,mfc2_response,...]] , ...]
+        # mfc_history = [ [time1,[mfc1_response,mfc2_response,...,Valve_State]] , [time2,[mfc1_response,mfc2_response,...,Valve_State]] , ...]
         self.setpoint_history = []
         self.mfc_response_history = [] 
         self.sensor_history = [] # [[time, pressure1, sensor2,...],...]
@@ -35,10 +35,6 @@ class Data_Handler:
         self.serial = None
         self.num_mfcs = 0
 
-        # Variables to send and receive
-        # self.data_out = [MFC1_setpoint, MFC2_setpoint,..., Main]
-        self.data_out = []
-        self.received_data_lists = {}
     
         # simulation variables as needed
         self.do_sim = False
@@ -141,8 +137,9 @@ class Data_Handler:
         try:
             # Convert list to string for sending
             # Example: "1.0,0,23.4\n"
-            out_string = self.delimiter.join(map(str, self.data_out)) + "\n"
+            out_string = self.delimiter.join(map(str, new_setpoints)) + "\n"
             self.serial.write(out_string.encode("utf-8"))
+            self.setpoint_history.append([time.time(),enumerate(new_setpoints)]) # Save mfc and valve setpoints
         except Exception as e:
             self.UI.write_to_terminal(f"Error sending data: {e}")
 
@@ -184,10 +181,12 @@ class Data_Handler:
             self.mfc_response_history.append([time.time(),[self.sim_mfcs[i].get_value() for i in range(len(self.sim_mfcs))]])
 
         elif not self.do_sim: # Running Arduino communication
-            pass
+            self.send_data(new_setpoints)
+        else:
+            self.UI.write_to_terminal("[Data_Handler] Unknown operation mode.")
 
     ### # Define similair functions for simulation instead of arduino communication
-    def start_sim(self,number_of_mfcs=2):
+    def start_sim(self,number_of_mfcs=5):
         """Create and start mfc simulation objects"""
         self.do_sim = True
         self.running = True

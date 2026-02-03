@@ -68,9 +68,11 @@ class ControlSystem:
     ######### State specific logic
 
     def emergency_stop(self):
+        self.dh.update_setpoints([0,0,0,0,0,0,0]) # Send zero flow to all MFC's and close valve
         self.UI.write_to_terminal("[STATE: EMERGENCY STOP] System or user detected emergency conditions...")
 
     def idle(self):
+        self.dh.update_setpoints([1,0,0,0,0,0,0]) # Send zero flow to all MFC's and close valve
         self.UI.write_to_terminal("[STATE: IDLE System is standing by...")
             
 
@@ -102,7 +104,7 @@ class ControlSystem:
                 for col_i in range(1,len(data_cols) - 1): # Skip time column
                     data.append(data_cols[col_i][idx])
 
-                self.dh.send_data(data)
+                self.dh.update_setpoints(data)
                 idx += 1
 
 

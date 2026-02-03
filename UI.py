@@ -50,7 +50,7 @@ class UI_Object(tk.Tk):
             ["Pressure Sensor 1: ","Pressure Sensor 2: ", "Pressure Sensor 3: "]]
 
         # Variables for loading in test data
-        self.valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4"]
+        self.valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4","NA"]
         self.test_columns = [] # [Title1,Title2,Title3,...]
         self.test_plan = [] # [[Time1, Val1.1, Val2.1, ...], [Time2, Val1.2, Val2.2,...], ...]
 
