@@ -34,7 +34,7 @@ class UI_Object(tk.Tk):
         # Define names for main displays and buttons
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
-        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect"]
+        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints"]
         self.indicators = ["State","Indicator 1","Indicator 2"]
 
         # Define graph names and variable names for overview display
@@ -340,6 +340,55 @@ class UI_Object(tk.Tk):
         if name == self.function_buttons[5]: # Connect button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.dh.connect_to_arduino()
+        if name == self.function_buttons[6]:  # Send Setpoints button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+
+            popup = tk.Toplevel(self)
+            popup.title("Send Setpoints")
+            popup.resizable(False, False)
+            popup.transient(self)
+            popup.grab_set()
+
+            tk.Label(
+                popup,
+                text="Enter setpoints in SLPM:",
+                justify="left"
+            ).grid(row=0, column=0, columnspan=2, padx=10, pady=(10, 5))
+
+            valve_var = tk.IntVar(value=1)  # default OPEN
+            tk.Checkbutton(
+                popup,
+                text="Valve Open",
+                variable=valve_var
+            ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10)
+
+            sp_vars = []
+            for i in range(5):
+                tk.Label(popup, text=f"MFC {i+1}:").grid(
+                    row=i+2, column=0, sticky="e", padx=5, pady=2
+                )
+                v = tk.StringVar()
+                tk.Entry(popup, textvariable=v, width=12).grid(
+                    row=i+2, column=1, padx=5, pady=2
+                )
+                sp_vars.append(v)
+
+            def submit():
+                setpoints = []
+                for v in sp_vars:
+                    text = v.get().strip()
+                    setpoints.append(float(text) if text else 0.0)
+
+                custom_send = [1, valve_var.get(), *setpoints]
+                self.dh.update_setpoints(custom_send)
+                self.write_to_terminal(f"[INFO] Sent custom setpoints: {custom_send}")
+                popup.destroy()
+
+            tk.Button(popup, text="Enter", command=submit).grid(
+                row=7, column=0, columnspan=2, pady=10
+            )
+
+
     
     def show_display(self, name):
         # Handle navigation button presses to switch center display
