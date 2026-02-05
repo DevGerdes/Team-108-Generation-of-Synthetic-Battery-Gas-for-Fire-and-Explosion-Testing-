@@ -336,7 +336,6 @@ class UI_Object(tk.Tk):
         if name == self.function_buttons[4]: # EMERGENCY STOP button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.cs.set_state(0) # Set state to EMERGENCY STOP
-            self.update_indicators()
         if name == self.function_buttons[5]: # Connect button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.dh.connect_to_arduino()
@@ -379,9 +378,11 @@ class UI_Object(tk.Tk):
                     text = v.get().strip()
                     setpoints.append(float(text) if text else 0.0)
 
-                custom_send = [1, valve_var.get(), *setpoints]
-                self.dh.update_setpoints(custom_send)
-                self.write_to_terminal(f"[INFO] Sent custom setpoints: {custom_send}")
+                custom_send = [3, valve_var.get(), *setpoints] # [State (3 = custom setpoints), Valve, MFC1, MFC2, MFC3, MFC4, MFC5]
+                self.cs.custom_setpoints = custom_send
+                self.cs.set_state(3)
+                self.cs.start()
+                self.write_to_terminal(f"[UI] Sent custom setpoints: {custom_send}")
                 popup.destroy()
 
             tk.Button(popup, text="Enter", command=submit).grid(
@@ -412,6 +413,9 @@ class UI_Object(tk.Tk):
             elif self.cs.STATE == 2:
                 color = "green"
                 text = "RUNNING"
+            elif self.cs.STATE == 3:
+                color = "orange"
+                text = "CUSTOM SETPOINTS"
             self.indicator_widgets[name].config(text=text)
             self.indicator_widgets[name].config(bg=color)
         elif name == self.indicators[1]: # Update Indicator 1
