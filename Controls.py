@@ -25,7 +25,7 @@ class ControlSystem:
         # 2 = Run Test
         # 3 = Run custom setpoints
         self.STATE = 1  # Default to Idle state  
-        self.custom_setpoints = [0,0,0,0,0,0,0] # Placeholder for custom setpoints (STATE,Valve, MFC1, MFC2, MFC3, MFC4, MFC5)
+        self.custom_setpoints = [] # Placeholder for custom setpoints (STATE,Valve, MFC1, MFC2, MFC3, MFC4, MFC5)
 
     # ---------- Core Loop ---------- #
     def _loop(self):

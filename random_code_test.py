@@ -1,5 +1,4 @@
-test = [1]
+test = [1,2,3,4]
 
 
-if test is not None:
-    print("Test is not None")
+print(*test)

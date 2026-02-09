@@ -372,7 +372,7 @@ class UI_Object(tk.Tk):
                 )
                 sp_vars.append(v)
 
-            def submit():
+            def submit(): # Gather, process, and send data from window when enter button pressed
                 setpoints = []
                 for v in sp_vars:
                     text = v.get().strip()
