@@ -35,19 +35,20 @@ class UI_Object(tk.Tk):
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
         self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints"]
-        self.indicators = ["State","Indicator 1","Indicator 2"]
+        self.indicators = ["State","Valve","Arduino"]
 
         # Define graph names and variable names for overview display
-        self.mfc_graphs = ["Test Plan Preview", "MFC 1 Response", "MFC 2 Response"]
-        self.sensor_graphs = ["Pressure Sensor 1"]
+        self.mfc_graphs = ["Test Plan Preview", "MFC 1 Response", "MFC 2 Response","MFC 3 Response","MFC 4 Response","MFC 5 Response",]
+        self.sensor_graphs = ["Pressure Sensors","Gas Sensors"]
         self.graph_names = self.mfc_graphs+self.sensor_graphs
-        self.graph_variable_names = [["Composition Percents", "Heat Release Rate (kW)"],"Flow Rate (SLPM)", "Flow Rate (SLPM)", "Pressure (psi)"]
+        self.graph_variable_names = [["Composition Percents", "Heat Release Rate (kW)"],"Flow Rate (SLPM)", "Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)", "Pressure (psi)","Gas Sensor Response (PPM)",]
 
         # Variables to report for the Live values screen
         # Each element cooresponds to a column of values
         self.report_variables = [["MFC 1 Setpoint: ", "MFC 2 Setpoint: ", "MFC 3 Setpoint: ", "MFC 4 Setpoint: ", "MFC 5 Setpoint: "],
             ["MFC 1 Response: ","MFC 2 Response: ","MFC 3 Response: ","MFC 4 Response: ","MFC 5 Response: "],                  
-            ["Pressure Sensor 1: ","Pressure Sensor 2: ", "Pressure Sensor 3: "]]
+            ["Pressure Sensor 1: ","Pressure Sensor 2: ", "Pressure Sensor 3: "],
+            ["Gas Sensor 1: ","Gas Sensor 2: "],]
 
         # Variables for loading in test data
         self.valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4","NA"]
@@ -189,11 +190,20 @@ class UI_Object(tk.Tk):
                 self.graphs[name] = {"ax": ax, "lines": [line1, line2]}
                 continue
 
-            # Sensor graphs: single line 
-            if name in self.sensor_graphs:
-                (line,) = ax.plot([], [], label="Sensor")
+            # Pressure sensor graphs
+            if name == self.sensor_graphs[0]:
+                line1, = ax.plot([], [], label="150 psi sensor", linestyle="-")
+                line2, = ax.plot([], [], label="50 psi sensor", linestyle="-")
                 ax.legend(fontsize=6, frameon=False, loc="upper right")
-                self.graphs[name] = {"ax": ax, "lines": [line]}
+                self.graphs[name] = {"ax": ax, "lines": [line1, line2]}
+                continue
+
+            # Gas sensor graphs
+            if name == self.sensor_graphs[1]:
+                line1, = ax.plot([], [], label="Gas Sensor 1", linestyle="-")
+                line2, = ax.plot([], [], label="Gas Sensor 2", linestyle="-")
+                ax.legend(fontsize=6, frameon=False, loc="upper right")
+                self.graphs[name] = {"ax": ax, "lines": [line1, line2]}
                 continue
 
         # Hide unused subplots
@@ -418,26 +428,44 @@ class UI_Object(tk.Tk):
                 text = "CUSTOM SETPOINTS"
             self.indicator_widgets[name].config(text=text)
             self.indicator_widgets[name].config(bg=color)
-        elif name == self.indicators[1]: # Update Indicator 1
-            pass
-        elif name == self.indicators[2]: # Update Indicator 2
-            pass
+        elif name == self.indicators[1]: # Valve state indicator
+            valve_state = self.dh.valve_history[-1][1]
+            if valve_state == 1:
+                color = "yellow"
+                text = "VALVE OPEN"
+            else:
+                color = "green"
+                text = "VALVE CLOSED"
+            self.indicator_widgets[name].config(text=text)
+            self.indicator_widgets[name].config(bg=color)
+        elif name == self.indicators[2]: # Arduino Connection Indicator
+            if self.dh.Arduino_connected:
+                color = "green"
+                text = "ARDUINO CONNECTED"
+            else:
+                color = "red"
+                text = "ARDUINO DISCONNECTED"
+            self.indicator_widgets[name].config(text=text)
+            self.indicator_widgets[name].config(bg=color)
         else:
             self.write_to_terminal(f"[ERROR] Indicator '{name}' not found.")
 
     def update_graphs(self):
         """Update all graphs using stored data (no inputs)."""
         now = time.time()
-        window = 600  # 10 minutes [seconds]
+        window = 60*5  # 5 minutes [seconds]
 
-        # [t, ...] entries by last 10 min
+        # [t, ...] entries exsisting within window
         def recent(data):
             return [d for d in data if len(d) > 0 and (now - d[0]) <= window]
 
         #Collect and filter histories
         setpoints = recent(getattr(self.dh, "setpoint_history", []))
-        responses = recent(getattr(self.dh, "mfc_response_history", []))
-        sensors  = recent(getattr(self, "sensor_history", []))
+        responses = recent(getattr(self.dh, "response_history", []))
+        sensors  = recent(getattr(self.dh, "sensor_history", []))
+        # split sensors into pressure and gas sensor lists
+        pressure_sensors = [[s[0]] + s[1:3] for s in sensors if len(s) >= 3]
+        gas_sensors = [[s[0]] + s[3:] for s in sensors if len(s) > 3]
 
         # Test Plan Preview
         if self.mfc_graphs[0] in self.graphs:
@@ -480,11 +508,11 @@ class UI_Object(tk.Tk):
             lines = graph["lines"]
 
             # Verify data presence
-            if not setpoints or not responses:
-                ax.clear()
-                ax.set_title(name)
-                ax.text(0.5, 0.5, "No MFC Data", color="gray",
-                        ha="center", va="center", transform=ax.transAxes)
+            if not setpoints or not responses: # If no data, continue
+                # ax.clear()
+                # ax.set_title(name)
+                # ax.text(0.5, 0.5, "No MFC Data", color="gray",
+                #         ha="center", va="center", transform=ax.transAxes)
                 continue
 
             try:
@@ -501,42 +529,83 @@ class UI_Object(tk.Tk):
             except Exception as e:
                 self.write_to_terminal(f"[ERROR] Updating {name}: {e}")
 
-        # Sensor Graphs (single line)
-        if sensors:
-            times = [t for t, *_ in sensors]
-            for j, name in enumerate(self.sensor_graphs, start=1):
-                if name not in self.graphs:
-                    continue
+        # Sensor Graphs
+        if pressure_sensors:
+            times = [t for t, *_ in pressure_sensors]
+            with name == self.sensor_graphs[0]: # Pressure Sensors
                 graph = self.graphs[name]
                 ax = graph["ax"]
                 lines = graph["lines"]
 
-                if len(sensors[0]) <= j:  # sensor not present in data
-                    ax.clear()
-                    ax.set_title(name)
-                    ax.text(0.5, 0.5, "No Data", color="gray",
-                            ha="center", va="center", transform=ax.transAxes)
-                    continue
-
                 try:
-                    vals = [row[j] for row in sensors]
-                    lines[0].set_data(times, vals)
+                    lines[0].set_data(times, [row[1] for row in pressure_sensors])
+                    lines[1].set_data(times, [row[2] for row in pressure_sensors])
                     ax.relim()
                     ax.autoscale_view()
                 except Exception as e:
                     self.write_to_terminal(f"[ERROR] Updating {name}: {e}")
-        else:
-            # Clear all if no sensor data
-            for name in self.sensor_graphs:
-                if name in self.graphs:
-                    ax = self.graphs[name]["ax"]
-                    ax.clear()
-                    ax.set_title(name)
-                    ax.text(0.5, 0.5, "No Sensor Data", color="gray",
-                            ha="center", va="center", transform=ax.transAxes)
+                    
+        # Gas sensor Graphs
+        if gas_sensors:
+            times = [t for t, *_ in gas_sensors]
+            with name == self.sensor_graphs[1]: # Gas Sensors
+                graph = self.graphs[name]
+                ax = graph["ax"]
+                lines = graph["lines"]
+
+                try:
+                    lines[0].set_data(times, [row[1] for row in gas_sensors])
+                    lines[1].set_data(times, [row[2] for row in gas_sensors])
+                    ax.relim()
+                    ax.autoscale_view()
+                except Exception as e:
+                    self.write_to_terminal(f"[ERROR] Updating {name}: {e}")
+        # else:
+        #     # Clear all if no sensor data
+        #     for name in self.sensor_graphs:
+        #         if name in self.graphs:
+        #             ax = self.graphs[name]["ax"]
+        #             ax.clear()
+        #             ax.set_title(name)
+        #             ax.text(0.5, 0.5, "No Sensor Data", color="gray",
+        #                     ha="center", va="center", transform=ax.transAxes)
 
         # Redraw all graphs
         self.canvas.draw_idle()
+
+    def update_values_display(self):
+
+        values = {
+        "MFC 1 Setpoint: ": lambda: self.dh.setpoint_history[-1][1],
+        "MFC 2 Setpoint: ": lambda: self.dh.setpoint_history[-1][2],
+        "MFC 3 Setpoint: ": lambda: self.dh.setpoint_history[-1][3],
+        "MFC 4 Setpoint: ": lambda: self.dh.setpoint_history[-1][4],
+        "MFC 5 Setpoint: ": lambda: self.dh.setpoint_history[-1][5],
+        "MFC 1 Response: ": lambda: self.dh.response_history[-1][1],
+        "MFC 2 Response: ": lambda: self.dh.response_history[-1][2],
+        "MFC 3 Response: ": lambda: self.dh.response_history[-1][3],
+        "MFC 4 Response: ": lambda: self.dh.response_history[-1][4],
+        "MFC 5 Response: ": lambda: self.dh.response_history[-1][5],                  
+        "Pressure Sensor 1: ": lambda: self.sensor_history[-1][1],
+        "Pressure Sensor 2: ": lambda: self.sensor_history[-1][2],
+        "Gas Sensor 1: ": lambda: self.sensor_history[-1][3],
+        "Gas Sensor 2: ": lambda: self.sensor_history[-1][4],
+        }
+
+        for var, lbl in self.value_labels.items():
+            if var not in values:
+                continue
+
+            val = values[var]
+
+            # Allow callables so you can pass references later
+            if callable(val):
+                try:
+                    val = val()
+                except Exception:
+                    val = "—"
+
+            lbl.config(text=f"{val}")
 
     def load_and_interpolate_excel(self,resolution=0.1):        
         # Hide the tkinter root window
@@ -607,7 +676,7 @@ class UI_Object(tk.Tk):
         self.test_columns = column_titles
         self.test_plan = interpolated_data
 
-        self.update_graphs()  # Example: update first data column
+        self.update_graphs()
 
     def print_variables(self):
         self.write_to_terminal(f"Test Columns: {self.test_columns}")

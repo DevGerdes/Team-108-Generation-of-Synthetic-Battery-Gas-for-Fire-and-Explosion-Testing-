@@ -22,7 +22,7 @@ class Data_Handler:
         # mfc_history = [ [time1,[mfc1_response,mfc2_response,...,Valve_State]] , [time2,[mfc1_response,mfc2_response,...,Valve_State]] , ...]
         self.setpoint_history = []
         self.response_history = [] 
-        self.sensor_history = [] # [[time, pressure1, sensor2,...],...]
+        self.sensor_history = [] # [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,...],...]
         self.valve_history = [] # [[time, valve_state],...]
 
         # Arduino Serial Communication Parameters
@@ -60,6 +60,7 @@ class Data_Handler:
         except serial.SerialException as e:
             self.UI.write_to_terminal(f"Error connecting to Arduino: {e}")
             self.serial = None
+        self.UI.update_indicators(name=self.UI.indicators[3])
 
     def find_arduino_port(self):
         """
@@ -216,7 +217,7 @@ class Data_Handler:
     def check_emergency_conditions(self, new_setpoints):
         # Emergency condition values
         # Name, Test type, Value, Min, warning min, warning max, max 
-        # If test is binary (T/F) then use 0,0,1,1 where max values are desired state
+        # If test is binary (T/F) then use 0,0,0,1 where last value is desired state
         num_mfcs = len(new_setpoints)
         MFC_setpoint_tests = [[f"MFC {i+1} Setpoint", "All", new_setpoints[i], 0, 0, 9, 10] for i in range(num_mfcs)]
         MFC_response_tests = [[f"MFC {i+1} Response", "All", self.mfc_response_history[-1][i+1], 0, 0, 1.1*MFC_setpoint_tests[i], 1.2*MFC_setpoint_tests[i]] for i in range(num_mfcs)] # Warning at over 110% of setpoint, max at 120%
@@ -226,7 +227,11 @@ class Data_Handler:
             MFC_setpoint_tests,
             MFC_response_tests,
             MFC_response_Error_delta_tests,
-            ["Pressure Sensor 1", "All", self.pressure_sensor_1, 0, 0, 135, 150],
+            ["Pressure Sensor 1", "All", self.sensor_history[-1][1], 0, 0, 135, 150],
+            ["Pressure Sensor 2", "All", self.sensor_history[-1][2], 0, 0, 40, 50],
+            ["Gas Sensor 1", "All", self.sensor_history[-1][3], 0, 0, 40, 50],
+            ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
+            ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]], # test if valve state matches the most recent setpoint issued
             ["Arduino Connected", "Binary", self.Arduino_connected, 0, 0, 1, 1] # 0 = disconnected, 1 = connected
         ]
 
@@ -249,5 +254,5 @@ class Data_Handler:
             else:
                 self.UI.write_to_terminal(f"Unknown test type '{test[1]}' for {test[0]}")
         if violations != []:
-            print("Warning:", ", ".join(violations))
+            self.UI.write_to_terminal(f"Warning: {', '.join(violations)}")
             self.cs.STATE = 0

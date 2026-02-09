@@ -112,15 +112,19 @@ class ControlSystem:
                 self.dh.update_setpoints(data)
                 idx += 1
 
-
+            self.UI.update_graphs() # Update graphs at each loop iteration
+            self.UI.update_values_display()
             time.sleep(self.resolution)
 
     def run_custom(self, setpoints):
         self.UI.write_to_terminal(f"[CONTROLS: RUNNING CUSTOM SETPOINTS]: {setpoints}")
-        self.set_state(3)
+        if self.STATE != 3:
+            self.set_state(3)
         self.dh.update_setpoints(setpoints)
         while self.STATE == 3:
             self.dh.check_emergency_conditions()
             if self.STATE != 3:
                 break
+            self.UI.update_graphs() # Update graphs at each loop iteration
+            self.UI.update_values_display()
             time.sleep(self.resolution)
