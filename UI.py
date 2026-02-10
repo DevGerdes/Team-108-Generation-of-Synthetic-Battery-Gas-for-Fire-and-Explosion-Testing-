@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import scrolledtext
-from tkinter import Tk, filedialog
+from tkinter import Tk, filedialog, simpledialog
 import time
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
@@ -34,7 +34,7 @@ class UI_Object(tk.Tk):
         # Define names for main displays and buttons
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
-        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints"]
+        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints","Save Data"]
         self.indicators = ["State","Valve","Arduino"]
 
         # Define graph names and variable names for overview display
@@ -399,6 +399,10 @@ class UI_Object(tk.Tk):
                 row=7, column=0, columnspan=2, pady=10
             )
 
+        if name == self.function_buttons[7]:  # Save Data button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.save_histories_to_excel()
+
 
     
     def show_display(self, name):
@@ -684,3 +688,42 @@ class UI_Object(tk.Tk):
         for row in self.test_plan:
             self.write_to_terminal(f"{row}")
 
+    def save_histories_to_excel(self):
+
+        if self.dh.setpoint_history == [] and self.dh.response_history == [] and self.dh.sensor_history == [] and self.dh.valve_history == []:
+            self.write_to_terminal("[ERROR] No data to save.")
+            return
+        root = tk.Tk()
+        root.withdraw()
+
+        path = filedialog.asksaveasfilename(
+            title="Save data",
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx")]
+        )
+        if not path:
+            return
+
+        # --- extract time (assume uniform) ---
+        time = [row[0] for row in self.dh.response_history]
+
+        n_mfc_set = len(self.dh.setpoint_history[0][1])
+        n_mfc_resp = len(self.dh.response_history[0][1])
+        n_sensors = len(self.dh.sensor_history[0]) - 1
+
+        data = {"Time": time}
+
+        for i in range(n_mfc_set):
+            data[f"MFC {i+1} setpoint"] = [row[1][i] for row in self.dh.setpoint_history]
+
+        for i in range(n_mfc_resp):
+            data[f"MFC {i+1} response"] = [row[1][i] for row in self.dh.response_history]
+
+        sensor_names = ["Pressure 1", "Pressure 2", "Gas 1", "Gas 2"]
+        for i in range(n_sensors):
+            name = sensor_names[i] if i < len(sensor_names) else f"Sensor {i+1}"
+            data[name] = [row[i+1] for row in self.dh.sensor_history]
+
+        data["Valve state"] = [row[1] for row in self.dh.valve_history]
+
+        pd.DataFrame(data).to_excel(path, index=False)
