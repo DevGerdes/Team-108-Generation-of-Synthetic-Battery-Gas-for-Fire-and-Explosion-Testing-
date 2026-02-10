@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import scrolledtext
-from tkinter import Tk, filedialog
+from tkinter import Tk, filedialog, simpledialog
 import time
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
@@ -34,19 +34,26 @@ class UI_Object(tk.Tk):
         # Define names for main displays and buttons
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
-        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP"]
-        self.indicators = ["State","Indicator 1","Indicator 2"]
+        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints","Save Data"]
+        self.indicators = ["State","Valve","Arduino"]
 
         # Define graph names and variable names for overview display
-        self.mfc_graphs = ["Test Plan Preview", "MFC 1 Response", "MFC 2 Response"]
-        self.sensor_graphs = ["Pressure Sensor 1"]
+        self.mfc_graphs = ["Test Plan Preview", "MFC 1 Response", "MFC 2 Response","MFC 3 Response","MFC 4 Response","MFC 5 Response",]
+        self.sensor_graphs = ["Pressure Sensors","Gas Sensors"]
         self.graph_names = self.mfc_graphs+self.sensor_graphs
-        self.graph_variable_names = [["Composition Percents", "Heat Release Rate (kW)"],"Flow Rate (SLPM)", "Flow Rate (SLPM)", "Pressure (psi)"]
+        self.graph_variable_names = [["Composition Percents", "Heat Release Rate (kW)"],"Flow Rate (SLPM)", "Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)", "Pressure (psi)","Gas Sensor Response (PPM)",]
+
+        # Variables to report for the Live values screen
+        # Each element cooresponds to a column of values
+        self.report_variables = [["MFC 1 Setpoint: ", "MFC 2 Setpoint: ", "MFC 3 Setpoint: ", "MFC 4 Setpoint: ", "MFC 5 Setpoint: "],
+            ["MFC 1 Response: ","MFC 2 Response: ","MFC 3 Response: ","MFC 4 Response: ","MFC 5 Response: "],                  
+            ["Pressure Sensor 1: ","Pressure Sensor 2: ", "Pressure Sensor 3: "],
+            ["Gas Sensor 1: ","Gas Sensor 2: "],]
 
         # Variables for loading in test data
-        self.valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4"]
-        self.test_columns = []
-        self.test_plan = []
+        self.valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4","NA"]
+        self.test_columns = [] # [Title1,Title2,Title3,...]
+        self.test_plan = [] # [[Time1, Val1.1, Val2.1, ...], [Time2, Val1.2, Val2.2,...], ...]
 
         # Start building the display
         self.window_nav_frame = tk.Frame(self, bg=self.styles["panel_bg"])
@@ -133,6 +140,8 @@ class UI_Object(tk.Tk):
 
         # Build specific displays
         self._build_overview_display()
+        self._build_values_display()
+        self._build_troubleshooting()
 
         # Show default display on start
         self.show_display(self.main_display_names[0])
@@ -181,11 +190,20 @@ class UI_Object(tk.Tk):
                 self.graphs[name] = {"ax": ax, "lines": [line1, line2]}
                 continue
 
-            # Sensor graphs: single line 
-            if name in self.sensor_graphs:
-                (line,) = ax.plot([], [], label="Sensor")
+            # Pressure sensor graphs
+            if name == self.sensor_graphs[0]:
+                line1, = ax.plot([], [], label="150 psi sensor", linestyle="-")
+                line2, = ax.plot([], [], label="50 psi sensor", linestyle="-")
                 ax.legend(fontsize=6, frameon=False, loc="upper right")
-                self.graphs[name] = {"ax": ax, "lines": [line]}
+                self.graphs[name] = {"ax": ax, "lines": [line1, line2]}
+                continue
+
+            # Gas sensor graphs
+            if name == self.sensor_graphs[1]:
+                line1, = ax.plot([], [], label="Gas Sensor 1", linestyle="-")
+                line2, = ax.plot([], [], label="Gas Sensor 2", linestyle="-")
+                ax.legend(fontsize=6, frameon=False, loc="upper right")
+                self.graphs[name] = {"ax": ax, "lines": [line1, line2]}
                 continue
 
         # Hide unused subplots
@@ -200,6 +218,75 @@ class UI_Object(tk.Tk):
         canvas.get_tk_widget().pack(fill="both", expand=True)
         self.canvas = canvas
 
+    def _build_values_display(self):
+        """Build a matrix of blank labels for report variables.
+        Each inner list in self.report_variables defines one column of variable names.
+        """
+
+        frame = self.displays.get("Live Values")
+        if frame is None:
+            self.write_to_terminal("[ERROR] 'Live Values' display not found.")
+            return
+
+        container = tk.Frame(frame, bg=self.styles["bg"])
+        container.pack(fill="both", expand=True, pady=10)
+
+        self.value_labels = {}
+
+        # Determine max number of rows (longest column)
+        max_rows = max(len(col) for col in self.report_variables)
+
+        for c, col_vars in enumerate(self.report_variables):
+            for r, var in enumerate(col_vars):
+                lbl_name = tk.Label(container, text=var,
+                                    fg=self.styles["text"], bg=self.styles["bg"],
+                                    font=("Segoe UI", 11, "bold"), anchor="e", width=18)
+                lbl_name.grid(row=r, column=c*2, padx=(10,2), pady=4, sticky="e")
+
+                lbl_val = tk.Label(container, text="—",
+                                   fg=self.styles["muted"], bg=self.styles["bg"],
+                                   font=("Segoe UI", 11), anchor="w", width=10)
+                lbl_val.grid(row=r, column=c*2 + 1, padx=(2,10), pady=4, sticky="w")
+
+                self.value_labels[var] = lbl_val
+
+        # Row expansion based on the longest column
+        for i in range(max_rows):
+            container.grid_rowconfigure(i, weight=1)
+
+    def _build_troubleshooting(self):
+        """Build the Troubleshooting and Best Practices display from Troubleshooting_Info.txt."""
+
+        frame = self.displays.get("TroubleShooting and Best Practices")
+        if frame is None:
+            self.write_to_terminal("[ERROR] 'TroubleShooting and Best Practices' display not found.")
+            return
+        container = tk.Frame(frame, bg=self.styles["bg"])
+        container.pack(fill="both", expand=True, padx=20, pady=20)
+        # Try loading the troubleshooting info from file
+        try:
+            with open("Troubleshooting_Info.txt", "r", encoding="utf-8") as f:
+                self.troubleshooting_text = f.read()
+        except FileNotFoundError:
+            self.troubleshooting_text = "[INFO] Troubleshooting_Info.txt not found.\n\n" \
+                                        "Create this file in the program directory to display information here."
+        except Exception as e:
+            self.troubleshooting_text = f"[ERROR] Unable to load troubleshooting info: {e}"
+
+        # Create the readonly text box
+        text_box = tk.Text(container, wrap="word",
+                           bg=self.styles["panel_bg"], fg=self.styles["text"],
+                           insertbackground=self.styles["text"], relief="flat",
+                           font=("Segoe UI", 11), height=25)
+        text_box.insert("1.0", self.troubleshooting_text)
+        text_box.config(state="disabled")
+        text_box.pack(fill="both", expand=True)
+
+        scrollbar = tk.Scrollbar(container, command=text_box.yview)
+        text_box.config(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+
+        self.troubleshooting_box = text_box
 
     def _build_terminal(self):
         lbl = tk.Label(self.terminal_frame, text="Terminal",
@@ -236,6 +323,9 @@ class UI_Object(tk.Tk):
         if name == self.function_buttons[0]: # Start button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             try:
+                if self.test_plan == []:
+                    self.write_to_terminal("[ERROR] No test plan loaded. Cannot start test.")
+                    return
                 self.cs.set_state(2) # Set state to RUN TEST
                 self.write_to_terminal("[INFO] Test started.")
             except Exception as e:
@@ -256,7 +346,64 @@ class UI_Object(tk.Tk):
         if name == self.function_buttons[4]: # EMERGENCY STOP button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.cs.set_state(0) # Set state to EMERGENCY STOP
-            self.update_indicators()
+        if name == self.function_buttons[5]: # Connect button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.dh.connect_to_arduino()
+        if name == self.function_buttons[6]:  # Send Setpoints button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+
+            popup = tk.Toplevel(self)
+            popup.title("Send Setpoints")
+            popup.resizable(False, False)
+            popup.transient(self)
+            popup.grab_set()
+
+            tk.Label(
+                popup,
+                text="Enter setpoints in SLPM:",
+                justify="left"
+            ).grid(row=0, column=0, columnspan=2, padx=10, pady=(10, 5))
+
+            valve_var = tk.IntVar(value=1)  # default OPEN
+            tk.Checkbutton(
+                popup,
+                text="Valve Open",
+                variable=valve_var
+            ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10)
+
+            sp_vars = []
+            for i in range(5):
+                tk.Label(popup, text=f"MFC {i+1}:").grid(
+                    row=i+2, column=0, sticky="e", padx=5, pady=2
+                )
+                v = tk.StringVar()
+                tk.Entry(popup, textvariable=v, width=12).grid(
+                    row=i+2, column=1, padx=5, pady=2
+                )
+                sp_vars.append(v)
+
+            def submit(): # Gather, process, and send data from window when enter button pressed
+                setpoints = []
+                for v in sp_vars:
+                    text = v.get().strip()
+                    setpoints.append(float(text) if text else 0.0)
+
+                custom_send = [3, valve_var.get(), *setpoints] # [State (3 = custom setpoints), Valve, MFC1, MFC2, MFC3, MFC4, MFC5]
+                self.cs.custom_setpoints = custom_send
+                self.cs.set_state(3)
+                self.cs.start()
+                self.write_to_terminal(f"[UI] Sent custom setpoints: {custom_send}")
+                popup.destroy()
+
+            tk.Button(popup, text="Enter", command=submit).grid(
+                row=7, column=0, columnspan=2, pady=10
+            )
+
+        if name == self.function_buttons[7]:  # Save Data button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.save_histories_to_excel()
+
+
     
     def show_display(self, name):
         # Handle navigation button presses to switch center display
@@ -280,28 +427,49 @@ class UI_Object(tk.Tk):
             elif self.cs.STATE == 2:
                 color = "green"
                 text = "RUNNING"
+            elif self.cs.STATE == 3:
+                color = "orange"
+                text = "CUSTOM SETPOINTS"
             self.indicator_widgets[name].config(text=text)
             self.indicator_widgets[name].config(bg=color)
-        elif name == self.indicators[1]: # Update Indicator 1
-            pass
-        elif name == self.indicators[2]: # Update Indicator 2
-            pass
+        elif name == self.indicators[1]: # Valve state indicator
+            valve_state = self.dh.valve_history[-1][1]
+            if valve_state == 1:
+                color = "yellow"
+                text = "VALVE OPEN"
+            else:
+                color = "green"
+                text = "VALVE CLOSED"
+            self.indicator_widgets[name].config(text=text)
+            self.indicator_widgets[name].config(bg=color)
+        elif name == self.indicators[2]: # Arduino Connection Indicator
+            if self.dh.Arduino_connected:
+                color = "green"
+                text = "ARDUINO CONNECTED"
+            else:
+                color = "red"
+                text = "ARDUINO DISCONNECTED"
+            self.indicator_widgets[name].config(text=text)
+            self.indicator_widgets[name].config(bg=color)
         else:
             self.write_to_terminal(f"[ERROR] Indicator '{name}' not found.")
 
     def update_graphs(self):
         """Update all graphs using stored data (no inputs)."""
         now = time.time()
-        window = 600  # 10 minutes [seconds]
+        window = 60*5  # 5 minutes [seconds]
 
-        # [t, ...] entries by last 10 min
+        # [t, ...] entries exsisting within window
         def recent(data):
             return [d for d in data if len(d) > 0 and (now - d[0]) <= window]
 
         #Collect and filter histories
         setpoints = recent(getattr(self.dh, "setpoint_history", []))
-        responses = recent(getattr(self.dh, "mfc_response_history", []))
-        sensors  = recent(getattr(self, "sensor_history", []))
+        responses = recent(getattr(self.dh, "response_history", []))
+        sensors  = recent(getattr(self.dh, "sensor_history", []))
+        # split sensors into pressure and gas sensor lists
+        pressure_sensors = [[s[0]] + s[1:3] for s in sensors if len(s) >= 3]
+        gas_sensors = [[s[0]] + s[3:] for s in sensors if len(s) > 3]
 
         # Test Plan Preview
         if self.mfc_graphs[0] in self.graphs:
@@ -344,11 +512,11 @@ class UI_Object(tk.Tk):
             lines = graph["lines"]
 
             # Verify data presence
-            if not setpoints or not responses:
-                ax.clear()
-                ax.set_title(name)
-                ax.text(0.5, 0.5, "No MFC Data", color="gray",
-                        ha="center", va="center", transform=ax.transAxes)
+            if not setpoints or not responses: # If no data, continue
+                # ax.clear()
+                # ax.set_title(name)
+                # ax.text(0.5, 0.5, "No MFC Data", color="gray",
+                #         ha="center", va="center", transform=ax.transAxes)
                 continue
 
             try:
@@ -365,42 +533,83 @@ class UI_Object(tk.Tk):
             except Exception as e:
                 self.write_to_terminal(f"[ERROR] Updating {name}: {e}")
 
-        # Sensor Graphs (single line)
-        if sensors:
-            times = [t for t, *_ in sensors]
-            for j, name in enumerate(self.sensor_graphs, start=1):
-                if name not in self.graphs:
-                    continue
+        # Sensor Graphs
+        if pressure_sensors:
+            times = [t for t, *_ in pressure_sensors]
+            with name == self.sensor_graphs[0]: # Pressure Sensors
                 graph = self.graphs[name]
                 ax = graph["ax"]
                 lines = graph["lines"]
 
-                if len(sensors[0]) <= j:  # sensor not present in data
-                    ax.clear()
-                    ax.set_title(name)
-                    ax.text(0.5, 0.5, "No Data", color="gray",
-                            ha="center", va="center", transform=ax.transAxes)
-                    continue
-
                 try:
-                    vals = [row[j] for row in sensors]
-                    lines[0].set_data(times, vals)
+                    lines[0].set_data(times, [row[1] for row in pressure_sensors])
+                    lines[1].set_data(times, [row[2] for row in pressure_sensors])
                     ax.relim()
                     ax.autoscale_view()
                 except Exception as e:
                     self.write_to_terminal(f"[ERROR] Updating {name}: {e}")
-        else:
-            # Clear all if no sensor data
-            for name in self.sensor_graphs:
-                if name in self.graphs:
-                    ax = self.graphs[name]["ax"]
-                    ax.clear()
-                    ax.set_title(name)
-                    ax.text(0.5, 0.5, "No Sensor Data", color="gray",
-                            ha="center", va="center", transform=ax.transAxes)
+                    
+        # Gas sensor Graphs
+        if gas_sensors:
+            times = [t for t, *_ in gas_sensors]
+            with name == self.sensor_graphs[1]: # Gas Sensors
+                graph = self.graphs[name]
+                ax = graph["ax"]
+                lines = graph["lines"]
+
+                try:
+                    lines[0].set_data(times, [row[1] for row in gas_sensors])
+                    lines[1].set_data(times, [row[2] for row in gas_sensors])
+                    ax.relim()
+                    ax.autoscale_view()
+                except Exception as e:
+                    self.write_to_terminal(f"[ERROR] Updating {name}: {e}")
+        # else:
+        #     # Clear all if no sensor data
+        #     for name in self.sensor_graphs:
+        #         if name in self.graphs:
+        #             ax = self.graphs[name]["ax"]
+        #             ax.clear()
+        #             ax.set_title(name)
+        #             ax.text(0.5, 0.5, "No Sensor Data", color="gray",
+        #                     ha="center", va="center", transform=ax.transAxes)
 
         # Redraw all graphs
         self.canvas.draw_idle()
+
+    def update_values_display(self):
+
+        values = {
+        "MFC 1 Setpoint: ": lambda: self.dh.setpoint_history[-1][1],
+        "MFC 2 Setpoint: ": lambda: self.dh.setpoint_history[-1][2],
+        "MFC 3 Setpoint: ": lambda: self.dh.setpoint_history[-1][3],
+        "MFC 4 Setpoint: ": lambda: self.dh.setpoint_history[-1][4],
+        "MFC 5 Setpoint: ": lambda: self.dh.setpoint_history[-1][5],
+        "MFC 1 Response: ": lambda: self.dh.response_history[-1][1],
+        "MFC 2 Response: ": lambda: self.dh.response_history[-1][2],
+        "MFC 3 Response: ": lambda: self.dh.response_history[-1][3],
+        "MFC 4 Response: ": lambda: self.dh.response_history[-1][4],
+        "MFC 5 Response: ": lambda: self.dh.response_history[-1][5],                  
+        "Pressure Sensor 1: ": lambda: self.sensor_history[-1][1],
+        "Pressure Sensor 2: ": lambda: self.sensor_history[-1][2],
+        "Gas Sensor 1: ": lambda: self.sensor_history[-1][3],
+        "Gas Sensor 2: ": lambda: self.sensor_history[-1][4],
+        }
+
+        for var, lbl in self.value_labels.items():
+            if var not in values:
+                continue
+
+            val = values[var]
+
+            # Allow callables so you can pass references later
+            if callable(val):
+                try:
+                    val = val()
+                except Exception:
+                    val = "—"
+
+            lbl.config(text=f"{val}")
 
     def load_and_interpolate_excel(self,resolution=0.1):        
         # Hide the tkinter root window
@@ -471,7 +680,7 @@ class UI_Object(tk.Tk):
         self.test_columns = column_titles
         self.test_plan = interpolated_data
 
-        self.update_graphs()  # Example: update first data column
+        self.update_graphs()
 
     def print_variables(self):
         self.write_to_terminal(f"Test Columns: {self.test_columns}")
@@ -479,3 +688,42 @@ class UI_Object(tk.Tk):
         for row in self.test_plan:
             self.write_to_terminal(f"{row}")
 
+    def save_histories_to_excel(self):
+
+        if self.dh.setpoint_history == [] and self.dh.response_history == [] and self.dh.sensor_history == [] and self.dh.valve_history == []:
+            self.write_to_terminal("[ERROR] No data to save.")
+            return
+        root = tk.Tk()
+        root.withdraw()
+
+        path = filedialog.asksaveasfilename(
+            title="Save data",
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx")]
+        )
+        if not path:
+            return
+
+        # --- extract time (assume uniform) ---
+        time = [row[0] for row in self.dh.response_history]
+
+        n_mfc_set = len(self.dh.setpoint_history[0][1])
+        n_mfc_resp = len(self.dh.response_history[0][1])
+        n_sensors = len(self.dh.sensor_history[0]) - 1
+
+        data = {"Time": time}
+
+        for i in range(n_mfc_set):
+            data[f"MFC {i+1} setpoint"] = [row[1][i] for row in self.dh.setpoint_history]
+
+        for i in range(n_mfc_resp):
+            data[f"MFC {i+1} response"] = [row[1][i] for row in self.dh.response_history]
+
+        sensor_names = ["Pressure 1", "Pressure 2", "Gas 1", "Gas 2"]
+        for i in range(n_sensors):
+            name = sensor_names[i] if i < len(sensor_names) else f"Sensor {i+1}"
+            data[name] = [row[i+1] for row in self.dh.sensor_history]
+
+        data["Valve state"] = [row[1] for row in self.dh.valve_history]
+
+        pd.DataFrame(data).to_excel(path, index=False)
