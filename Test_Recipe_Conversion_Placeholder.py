@@ -117,6 +117,7 @@ def convert_testplan_to_MFC_flows():
     # data = list(zip(*test_plan)) # [time, var1, var2, var3, ...]
     # time = data[0]
     t=1
+    t=2
 
 
     test_plan = []
