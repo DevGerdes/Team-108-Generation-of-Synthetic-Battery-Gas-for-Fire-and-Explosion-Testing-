@@ -227,7 +227,7 @@ class Data_Handler:
         # Emergency condition values
         # Name, Test type, Value, Min, warning min, warning max, max 
         # If test is binary (T/F) then use 0,0,0,1 where last value is desired state
-
+        print(self.setpoint_history)
         MFC_setpoint_tests = [
             [f"MFC {i+1} Setpoint",
              "All",
@@ -235,30 +235,55 @@ class Data_Handler:
             for i in range(len(self.setpoint_history[-1][1]))
         ]
 
-        MFC_response_tests = [[f"MFC {i+1} Response",
-                                "All", self.setpoint_history[-1][i+1],
-                                  0, 0, 1.1*MFC_setpoint_tests[i][2], 1.2*MFC_setpoint_tests[i][2]]
-                                    for i in range(len(self.setpoint_history[-1][1:]))] # Warning at over 110% of setpoint, max at 120%
-        MFC_response_Error_delta_tests = [[f"MFC {i+1} Response Error Delta",
-                                            "All",
-                                              abs(self.response_history[-1][i+1]-self.setpoint_history[-1][1:][i])/self.setpoint_history[-1][1:][i], 0, 0, 0.1, 0.2]
-                                                for i in range(len(self.setpoint_history[-1][1:]))] # Warning at over 10% error, max at 20%
-
-        emergency_tests = [
-            MFC_setpoint_tests,
-            MFC_response_tests,
-            MFC_response_Error_delta_tests,
-            ["Pressure Sensor 1", "All", self.sensor_history[-1][1], 0, 0, 135, 150],
-            ["Pressure Sensor 2", "All", self.sensor_history[-1][2], 0, 0, 40, 50],
-            ["Gas Sensor 1", "All", self.sensor_history[-1][3], 0, 0, 40, 50],
-            ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
-            ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]], # test if valve state matches the most recent setpoint issued
-            ["Arduino Connected", "Binary", self.Arduino_connected, 0, 0, 1, 1] # 0 = disconnected, 1 = connected
+        MFC_response_tests = [
+            [
+                f"MFC {i+1} Response",
+                "All",
+                self.response_history[-1][1][i],
+                0, 0,
+                1.1 * MFC_setpoint_tests[i][2],
+                1.2 * MFC_setpoint_tests[i][2],
+            ]
+            for i in range(len(self.response_history[-1][1]))
         ]
+        # Warning at over 110% of setpoint, max at 120%
+        
+        MFC_response_Error_delta_tests = [
+            [
+                f"MFC {i+1} Response Error Delta",
+                "All",
+                abs(
+                    self.response_history[-1][1][i]
+                    - self.setpoint_history[-1][1][i]
+                ) / max(self.setpoint_history[-1][1][i], 1e-9),
+                0, 0, 0.1, 0.2,
+            ]
+            for i in range(len(self.setpoint_history[-1][1]))
+        ]
+        # Warning at over 10% error, max at 20%
+
+        emergency_tests = (
+            MFC_setpoint_tests
+            + MFC_response_tests
+            + MFC_response_Error_delta_tests
+            + [
+                ["Pressure Sensor 1", "All", self.sensor_history[-1][1], 0, 0, 135, 150],
+                ["Pressure Sensor 2", "All", self.sensor_history[-1][2], 0, 0, 40, 50],
+                ["Gas Sensor 1", "All", self.sensor_history[-1][3], 0, 0, 40, 50],
+                ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
+                ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]],
+                ["Arduino Connected", "Binary", self.Arduino_connected, 0, 0, 1, 1],
+            ]
+        )
+
 
         # Cylce through each test and check for violations
         violations = []
+        print(emergency_tests)
+        print("\n")
         for test in emergency_tests:
+            print(test)
+            print("\n")
             if test[1] == "All":
                 if test[2] < test[3]: # if the value is below min
                     violations.append(f"{test[0]} below minimum")
