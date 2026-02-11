@@ -24,23 +24,28 @@ class ControlSystem:
         #  1 = Idle
         # 2 = Run Test
         # 3 = Run custom setpoints
-        self.STATE = 1  # Default to Idle state  
+        self.STATE = 1  # Default to Idle state 
+        self.oldstate = 1 # for controls loop logic
         self.custom_setpoints = [] # Placeholder for custom setpoints (STATE,Valve, MFC1, MFC2, MFC3, MFC4, MFC5)
 
     # ---------- Core Loop ---------- #
     def _loop(self):
         while self.running:
-            oldstate = self.STATE
-            if not self.STATE == oldstate: # If state has changed
+            if not self.STATE == self.oldstate: # If state has changed
+                self.oldstate = self.STATE
                 if self.STATE == 0: # Emergency Stop
+                    self.dh.running = False
                     self.emergency_stop()
                 elif self.STATE == 1: # Idle
+                    self.dh.running = False
                     self.idle()
                 elif self.STATE == 2: # Run Test
+                    self.dh.running = True
                     self.run_test()
                 elif self.STATE == 3: # Run custom setpoints
                     # Custom setpoints should be sent immediately when state changes, so just maintain them here
-                    self.run_custom()
+                    self.dh.running = True
+                    self.run_custom(self.custom_setpoints)
                 else:
                     print(f"[STATE: UNKNOWN] No handler for self.STATE '{self.STATE}'")
                     self.STATE = 0
@@ -118,8 +123,6 @@ class ControlSystem:
 
     def run_custom(self, setpoints):
         self.UI.write_to_terminal(f"[CONTROLS: RUNNING CUSTOM SETPOINTS]: {setpoints}")
-        if self.STATE != 3:
-            self.set_state(3)
         self.dh.update_setpoints(setpoints)
         while self.STATE == 3:
             self.dh.check_emergency_conditions()

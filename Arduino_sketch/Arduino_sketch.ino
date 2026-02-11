@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-const uint32_t BAUD = 93000;
+const uint32_t BAUD = 115200;
 
 int STATE = 0; // Default to emergency stop to close everything down
 // MFC Setpoint Values
@@ -22,7 +22,6 @@ float MixingChamberPressure = 0;
 float PipePressure = 0;
 float GasSensor1 = 0;
 float GasSensor2 = 0;
-float SENSOR5 = 0;
 
 // ----- Pin Assignments -----
 // MFC Setpoint outputs
@@ -58,6 +57,8 @@ uint32_t seq = 1;
 void setup()
 {
     Serial.begin(BAUD);
+    pinMode(VALVE_SET_PIN, OUTPUT);
+    pinMode(LED_BUILTIN,OUTPUT);
 }
 
 void loop()
@@ -68,6 +69,9 @@ void loop()
         char c = Serial.read();
         if (c == '\n')
         {
+            digitalWrite(LED_BUILTIN,HIGH);
+            delay(250);
+            digitalWrite(LED_BUILTIN,LOW);
             lineBuffer[bufPos] = 0; // for serial read logic
             parseLine(lineBuffer); // Read the incoming data and write apply setpoints and logic
             sendLine(); // Reply with newly read MFC response and sensor values
@@ -80,6 +84,7 @@ void loop()
         }
     }
 }
+
 
 void parseLine(const char *s)
 {
@@ -158,21 +163,38 @@ void sendLine()
     readMfcResponses();
     readSensors();
 
-    outBuffer[0] = 0;
-    int n = 0;
 
-    n += snprintf(outBuffer + n, OUTBUF_SIZE - n,
-                  "%lu,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f",
-                  seq, STATE, VALVE,
-                  MFC1_RESPONSE, MFC2_RESPONSE, MFC3_RESPONSE, MFC4_RESPONSE, MFC5_RESPONSE);
+    // Build single line of serial output and send
+    outBuffer[0] = '\0';
 
-    n += snprintf(outBuffer + n, OUTBUF_SIZE - n,
-                  ",%.3f,%.3f,%.3f,%.3f,%.3f",
-                  MixingChamberPressure, PipePressure, GasSensor1, GasSensor2, SENSOR5);
-    
-    Serial.println(outBuffer);
+    char tmp[16];
+
+    strcat(outBuffer, ultoa(seq, tmp, 10));
+    strcat(outBuffer, ",");
+
+    strcat(outBuffer, itoa(STATE, tmp, 10));
+    strcat(outBuffer, ",");
+
+    strcat(outBuffer, itoa(VALVE, tmp, 10));
+    strcat(outBuffer, ",");
+
+    dtostrf(MFC1_RESPONSE, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
+    dtostrf(MFC2_RESPONSE, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
+    dtostrf(MFC3_RESPONSE, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
+    dtostrf(MFC4_RESPONSE, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
+    dtostrf(MFC5_RESPONSE, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
+
+    dtostrf(MixingChamberPressure, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
+    dtostrf(PipePressure, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
+    dtostrf(GasSensor1, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
+    dtostrf(GasSensor2, 0, 3, tmp); strcat(outBuffer, tmp);
+
+    strcat(outBuffer, "\n");
+
+    Serial.write(outBuffer);
     seq++;
 }
+
 
 float adcToSlpm(uint16_t adc) // Convert MFC read analog value to SLPM value
 {
@@ -199,7 +221,6 @@ void readSensors()
     PipePressure = adcToUnits(analogRead(PipePressure_PIN),50); // 50 psi full range
     GasSensor1 = adcToUnits(analogRead(GasSensor1_PIN),1); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
     GasSensor2 = adcToUnits(analogRead(GasSensor2_PIN),1); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
-    SENSOR5 = adcToUnits(analogRead(SENSOR5_PIN),1); // BLANK SENSOR
 }
 
 

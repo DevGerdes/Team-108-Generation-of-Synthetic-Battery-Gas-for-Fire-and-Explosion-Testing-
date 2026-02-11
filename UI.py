@@ -391,7 +391,6 @@ class UI_Object(tk.Tk):
                 custom_send = [3, valve_var.get(), *setpoints] # [State (3 = custom setpoints), Valve, MFC1, MFC2, MFC3, MFC4, MFC5]
                 self.cs.custom_setpoints = custom_send
                 self.cs.set_state(3)
-                self.cs.start()
                 self.write_to_terminal(f"[UI] Sent custom setpoints: {custom_send}")
                 popup.destroy()
 
