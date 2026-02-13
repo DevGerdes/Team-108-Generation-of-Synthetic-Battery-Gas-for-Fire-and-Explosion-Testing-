@@ -142,7 +142,6 @@ class Data_Handler:
             parts = line.split(",")
             if len(parts) != 12: # Should recieve the number of elements as descirbed above
                 self.UI.write_to_terminal(f"Malformed data packet: {line}")
-                print(line)
                 return  # hard drop malformed packets
 
             seq = int(parts[0])
@@ -163,9 +162,9 @@ class Data_Handler:
 
             # parse values
             valve = int(parts[2])
-
-            mfc_vals = list(map(float, parts[3:8]))          # MFC1–MFC5
-            sensor_vals = list(map(float, parts[8:13]))      # pressures + gas sensors
+            mfc_vals = [float(parts(3)),float(parts(4)),float(parts(5)),float(parts(6)),float(parts(7))]          # MFC1–MFC5
+            # Mixing chamber pressure, pipe pressure, gas sensor 1, gas sensor 2
+            sensor_vals = [float(parts(8)),float(parts(9)),float(parts(10)),float(parts(11))]     
 
             # store histories (raw lists, no labels)
             self.response_history.append([t, *mfc_vals])
@@ -234,7 +233,6 @@ class Data_Handler:
             for i in range(len(self.setpoint_history[-1][1]))
         ]
 
-        print(self.response_history)
         MFC_response_tests = [
             [
                 f"MFC {i+1} Response",
@@ -276,15 +274,10 @@ class Data_Handler:
             ]
         )
 
-        print(emergency_tests)
 
         # Cylce through each test and check for violations
         violations = []
-        print(emergency_tests)
-        print("\n")
         for test in emergency_tests:
-            print(test)
-            print("\n")
             if test[1] == "All":
                 if test[2] < test[3]: # if the value is below min
                     violations.append(f"{test[0]} below minimum")
