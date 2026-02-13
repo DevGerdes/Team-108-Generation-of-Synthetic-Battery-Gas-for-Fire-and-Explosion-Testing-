@@ -227,7 +227,6 @@ class Data_Handler:
         # Emergency condition values
         # Name, Test type, Value, Min, warning min, warning max, max 
         # If test is binary (T/F) then use 0,0,0,1 where last value is desired state
-        print(self.setpoint_history)
         MFC_setpoint_tests = [
             [f"MFC {i+1} Setpoint",
              "All",
@@ -235,6 +234,7 @@ class Data_Handler:
             for i in range(len(self.setpoint_history[-1][1]))
         ]
 
+        print(self.response_history)
         MFC_response_tests = [
             [
                 f"MFC {i+1} Response",
@@ -244,7 +244,7 @@ class Data_Handler:
                 1.1 * MFC_setpoint_tests[i][2],
                 1.2 * MFC_setpoint_tests[i][2],
             ]
-            for i in range(len(self.response_history[-1][1]))
+            for i in range(1,len(self.response_history[-1]))
         ]
         # Warning at over 110% of setpoint, max at 120%
         
@@ -276,6 +276,7 @@ class Data_Handler:
             ]
         )
 
+        print(emergency_tests)
 
         # Cylce through each test and check for violations
         violations = []
