@@ -142,7 +142,6 @@ class ControlSystem:
         calibration_start = time.time()
         calibration_duration = 10 # seconds to run calibration for
         while self.STATE == 4:
-            self.dh.check_emergency_conditions()
             if self.STATE != 4:
                 break
 

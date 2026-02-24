@@ -166,8 +166,6 @@ class Data_Handler:
             self.sensor_history.append([t, float(parts[8]),float(parts[9]),float(parts[10]),float(parts[11])]) #[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2]
             self.UI.write_to_terminal(f"[Data_Handler] Received data: Seq={seq}, Valve={self.valve_history[-1]}, MFCs={self.response_history[-1][1:]}, Sensors={self.sensor_history[-1][1:]}")
 
-            print(self.sensor_history[-1]) # Debug print for sensor values
-
         except Exception as e:
             self.UI.write_to_terminal(f"[Data_Handler] Error reading arduino data: {e}")
 

@@ -405,7 +405,7 @@ class UI_Object(tk.Tk):
             self.save_histories_to_excel()
         if name == self.function_buttons[8]:  # Ambient Calibration button
             self.write_to_terminal(f"[ACTION] {name} pressed")
-            self.dh.set_state(4) # Set state to AMBIENT CALIBRATION
+            self.cs.set_state(4) # Set state to AMBIENT CALIBRATION
 
 
     
