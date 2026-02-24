@@ -167,9 +167,9 @@ class Data_Handler:
             sensor_vals = [float(parts(8)),float(parts(9)),float(parts(10)),float(parts(11))]     
 
             # store histories (raw lists, no labels)
-            self.response_history.append([t, *mfc_vals])
+            self.response_history.append([t, mfc_vals(0),mfc_vals(1),mfc_vals(2),mfc_vals(3),mfc_vals(4)]) # Save mfc responses
             self.valve_history.append([t, valve])
-            self.sensor_history.append([t, *sensor_vals])
+            self.sensor_history.append([t, sensor_vals])
             self.UI.write_to_terminal(f"[Data_Handler] Received data: Seq={seq}, Valve={valve}, MFCs={mfc_vals}, Sensors={sensor_vals}")
 
         except Exception as e:
