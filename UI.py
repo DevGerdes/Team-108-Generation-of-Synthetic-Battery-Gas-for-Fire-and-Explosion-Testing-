@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 import pandas as pd
+import os
+import csv
 
 class UI_Object(tk.Tk):
     ## Define all UI variables and build the layout
@@ -34,7 +36,7 @@ class UI_Object(tk.Tk):
         # Define names for main displays and buttons
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
-        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints","Save Data"]
+        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints","Save Data","Ambient Calibration"]
         self.indicators = ["State","Valve","Arduino"]
 
         # Define graph names and variable names for overview display
@@ -401,6 +403,9 @@ class UI_Object(tk.Tk):
         if name == self.function_buttons[7]:  # Save Data button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.save_histories_to_excel()
+        if name == self.function_buttons[8]:  # Ambient Calibration button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.dh.set_state(4) # Set state to AMBIENT CALIBRATION
 
 
     
@@ -429,6 +434,9 @@ class UI_Object(tk.Tk):
             elif self.cs.STATE == 3:
                 color = "orange"
                 text = "CUSTOM SETPOINTS"
+            elif self.cs.STATE == 4:
+                color = "orange"
+                text = "AMBIENT CALIBRATION"
             self.indicator_widgets[name].config(text=text)
             self.indicator_widgets[name].config(bg=color)
         elif name == self.indicators[1]: # Valve state indicator
@@ -726,3 +734,42 @@ class UI_Object(tk.Tk):
         data["Valve state"] = [row[1] for row in self.dh.valve_history]
 
         pd.DataFrame(data).to_excel(path, index=False)
+
+    def state_saver(action, var_name, value=None):
+        FILE_PATH = "state_save.csv"
+
+        # Ensure file exists
+        if not os.path.exists(FILE_PATH):
+            if action == "load":
+                raise FileNotFoundError(f"Data file not found at {FILE_PATH}")
+            open(FILE_PATH, "w").close()
+
+        data = {}
+
+        # Read existing data
+        with open(FILE_PATH, mode="r", newline="") as file:
+            reader = csv.reader(file)
+            for row in reader:
+                if len(row) == 2:
+                    data[row[0]] = row[1]
+
+        if action == "store":
+            if value is None:
+                raise ValueError("Store operation requires a value.")
+            data[var_name] = str(value)
+
+            # Rewrite entire file
+            with open(FILE_PATH, mode="w", newline="") as file:
+                writer = csv.writer(file)
+                for key, val in data.items():
+                    writer.writerow([key, val])
+
+            return True
+
+        elif action == "load":
+            if var_name not in data:
+                raise KeyError(f"Variable '{var_name}' not found in data store.")
+            return data[var_name]
+
+        else:
+            raise ValueError("Action must be 'store' or 'load'.")

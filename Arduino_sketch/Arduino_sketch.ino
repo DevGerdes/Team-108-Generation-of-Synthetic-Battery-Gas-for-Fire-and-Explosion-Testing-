@@ -25,7 +25,7 @@ float GasSensor2 = 0;
 
 // ----- Pin Assignments -----
 // MFC Setpoint outputs
-const uint8_t MFC1_SET_PIN = A0;
+const uint8_t MFC1_SET_PIN = A11;
 const uint8_t MFC2_SET_PIN = A1;
 const uint8_t MFC3_SET_PIN = A2;
 const uint8_t MFC4_SET_PIN = A3;
@@ -40,7 +40,7 @@ const uint8_t MFC5_READ_PIN = A9;
 const uint8_t VALVE_SET_PIN = 2; // Digital pin 2 (D2)
 // Sensor analog response pins
 const uint8_t MixingChamberPressure_PIN = A10;
-const uint8_t PipePressure_PIN = A11;
+const uint8_t PipePressure_PIN = A0;
 const uint8_t GasSensor1_PIN = A12;
 const uint8_t GasSensor2_PIN = A13;
 const uint8_t SENSOR5_PIN = A14;
@@ -73,8 +73,10 @@ void loop()
             delay(250);
             digitalWrite(LED_BUILTIN,LOW);
             lineBuffer[bufPos] = 0; // for serial read logic
-            parseLine(lineBuffer); // Read the incoming data and write apply setpoints and logic
-            sendLine(); // Reply with newly read MFC response and sensor values
+        if (parseLine(lineBuffer))
+        {
+            sendLine();
+        }
             bufPos = 0;
         }
         else if (c != '\r')
@@ -85,35 +87,69 @@ void loop()
     }
 }
 
+void sendError(const char *msg)
+{
+    outBuffer[0] = '\0';
 
-void parseLine(const char *s)
+    char tmp[16];
+
+    strcat(outBuffer, "ERR,");
+    strcat(outBuffer, ultoa(seq, tmp, 10));
+    strcat(outBuffer, ",");
+    strcat(outBuffer, msg);
+    strcat(outBuffer, "\n");
+
+    Serial.write(outBuffer);
+    seq++;
+}
+
+bool parseLine(const char *s)
 {
     int newState;
     int newValve;
-    float m1, m2, m3, m4, m5;
+
+    float m1, m2, m3, m4, m5;   // <-- YOU STILL NEED THESE
+
+    char f1[16], f2[16], f3[16], f4[16], f5[16];
 
     int fields = sscanf(
         s,
-        "%d,%d,%f,%f,%f,%f,%f",
+        "%d,%d,%15[^,],%15[^,],%15[^,],%15[^,],%15s",
         &newState,
         &newValve,
-        &m1, &m2, &m3, &m4, &m5
+        f1, f2, f3, f4, f5
     );
 
-    // Must receive exactly 7 values (STATE, VALVESTATE, MFC1, MFC2, MFC3, MFC4, MFC5)
     if (fields != 7)
-        return;
+    {
+        sendError("Invalid field count (expected 7)");
+        return false;
+    }
 
-    // Valve must be binary
+    m1 = atof(f1);
+    m2 = atof(f2);
+    m3 = atof(f3);
+    m4 = atof(f4);
+    m5 = atof(f5);
+
     if (newValve < 0 || newValve > 1)
-        return;
+    {
+        sendError("Valve must be 0 or 1");
+        return false;
+    }
 
-    // State change handling
+    if (newState < 0)
+    {
+        sendError("Invalid STATE value");
+        return false;
+    }
+
     if (newState != STATE)
     {
         STATE = newState;
         seq = 1;
-        if (STATE == 0) // Emergency stop detected, close everything (Probably unessesary to do it here, it should be done by the setpoints coming in as well)
+
+        if (STATE == 0)
         {
             analogWrite(MFC1_SET_PIN, 0);
             analogWrite(MFC2_SET_PIN, 0);
@@ -133,6 +169,8 @@ void parseLine(const char *s)
     MFC5 = m5;
 
     applySetpoints();
+
+    return true;
 }
 
 uint16_t mfcToPwm(float slpm)

@@ -22,7 +22,7 @@ class Data_Handler:
         # mfc_history = [ [time1,[mfc1_response,mfc2_response,...,Valve_State]] , [time2,[mfc1_response,mfc2_response,...,Valve_State]] , ...]
         self.setpoint_history = []
         self.response_history = [] 
-        self.sensor_history = [] # [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,...],...]
+        self.sensor_history = [] # [[time, Mixing Chamber Pressure, Line Pressure, Gas Sensor 1, Gas Sensor 2,...],...]
         self.valve_history = [] # [[time, valve_state],...]
 
         # Arduino Serial Communication Parameters
@@ -114,21 +114,21 @@ class Data_Handler:
             # Example: "1.0,0,23.4\n"
             out_string = self.delimiter.join(map(str, new_setpoints)) + "\n"
             self.serial.write(out_string.encode("utf-8")) # Send the data
-            self.setpoint_history.append([time.time(), list(new_setpoints[2:7])]) # Save mfc setpoints
+            self.setpoint_history.append([time.time(), new_setpoints[2],new_setpoints[3],new_setpoints[4],new_setpoints[5],new_setpoints[6]]) # Save mfc setpoints
             self.UI.write_to_terminal(f"[Data_Handler] Sent data: {out_string.strip()}")
 
         except Exception as e:
             self.UI.write_to_terminal(f"Error sending data: {e}")
 
-        time.sleep(.26)
-        self.read_data() # Immediately read response after sending setpoints to minimize delay
+
+        self.read_data() # Immediately read response after sending setpoints
 
     def read_data(self):
         """Read and parse incoming data from Arduino with seq heartbeat check."""
         self.UI.write_to_terminal("Checking for incoming data from Arduino...")
-        if not self.serial or not self.serial.in_waiting:
-            self.UI.write_to_terminal("No data available to read.")
-            return
+        # if not self.serial or not self.serial.in_waiting:
+        #     self.UI.write_to_terminal("No data available to read.")
+        #     return
 
         try:
             line = self.serial.readline().decode("utf-8", errors="ignore").strip()
@@ -160,17 +160,13 @@ class Data_Handler:
             self.heartbeat = 0
             t = time.time()
 
-            # parse values
-            valve = int(parts[2])
-            mfc_vals = [float(parts(3)),float(parts(4)),float(parts(5)),float(parts(6)),float(parts(7))]          # MFC1–MFC5
-            # Mixing chamber pressure, pipe pressure, gas sensor 1, gas sensor 2
-            sensor_vals = [float(parts(8)),float(parts(9)),float(parts(10)),float(parts(11))]     
+            # parse values and store histories
+            self.response_history.append([t, float(parts[3]),float(parts[4]),float(parts[5]),float(parts[6]),float(parts[7])]) # Save mfc responses
+            self.valve_history.append([t, int(parts[2])])
+            self.sensor_history.append([t, float(parts[8]),float(parts[9]),float(parts[10]),float(parts[11])]) #[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2]
+            self.UI.write_to_terminal(f"[Data_Handler] Received data: Seq={seq}, Valve={self.valve_history[-1]}, MFCs={self.response_history[-1][1:]}, Sensors={self.sensor_history[-1][1:]}")
 
-            # store histories (raw lists, no labels)
-            self.response_history.append([t, mfc_vals(0),mfc_vals(1),mfc_vals(2),mfc_vals(3),mfc_vals(4)]) # Save mfc responses
-            self.valve_history.append([t, valve])
-            self.sensor_history.append([t, sensor_vals])
-            self.UI.write_to_terminal(f"[Data_Handler] Received data: Seq={seq}, Valve={valve}, MFCs={mfc_vals}, Sensors={sensor_vals}")
+            print(self.sensor_history[-1]) # Debug print for sensor values
 
         except Exception as e:
             self.UI.write_to_terminal(f"[Data_Handler] Error reading arduino data: {e}")
@@ -223,50 +219,49 @@ class Data_Handler:
     #     gc.collect()
 
     def check_emergency_conditions(self):
-        # Emergency condition values
+        # Emergency condition test frames
         # Name, Test type, Value, Min, warning min, warning max, max 
-        # If test is binary (T/F) then use 0,0,0,1 where last value is desired state
+        # If test is binary (T/F) then use 0,0,0,1 where last value is desired state, first is opposite, middle ignored
         MFC_setpoint_tests = [
-            [f"MFC {i+1} Setpoint",
+            [f"MFC {i} Setpoint",
              "All",
-               self.setpoint_history[-1][1][i], 0, 0, 9, 10]
-            for i in range(len(self.setpoint_history[-1][1]))
+               self.setpoint_history[-1][i], 0, 0, 9, 10]
+            for i in range(1,len(self.setpoint_history[-1]))
         ]
 
         MFC_response_tests = [
             [
-                f"MFC {i+1} Response",
+                f"MFC {i} Response",
                 "All",
-                self.response_history[-1][1][i],
+                self.response_history[-1][i],
                 0, 0,
-                1.1 * MFC_setpoint_tests[i][2],
-                1.2 * MFC_setpoint_tests[i][2],
+                1.1 * self.setpoint_history[-1][i], # Warning at over 110% of setpoint, max at 120%
+                1.2 * self.setpoint_history[-1][i],
             ]
             for i in range(1,len(self.response_history[-1]))
         ]
-        # Warning at over 110% of setpoint, max at 120%
-        
+    
+        # Warning at over 10% error, max at 20%
         MFC_response_Error_delta_tests = [
             [
                 f"MFC {i+1} Response Error Delta",
                 "All",
-                abs(
-                    self.response_history[-1][1][i]
-                    - self.setpoint_history[-1][1][i]
-                ) / max(self.setpoint_history[-1][1][i], 1e-9),
+                abs(self.response_history[-1][i]- self.setpoint_history[-1][i]) / max(self.setpoint_history[-1][i], 1e-9),
                 0, 0, 0.1, 0.2,
             ]
-            for i in range(len(self.setpoint_history[-1][1]))
+            for i in range(len(self.setpoint_history[-1]))
         ]
-        # Warning at over 10% error, max at 20%
+        
+
+        # self.sensor_history = [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,...],...]
 
         emergency_tests = (
             MFC_setpoint_tests
             + MFC_response_tests
             + MFC_response_Error_delta_tests
             + [
-                ["Pressure Sensor 1", "All", self.sensor_history[-1][1], 0, 0, 135, 150],
-                ["Pressure Sensor 2", "All", self.sensor_history[-1][2], 0, 0, 40, 50],
+                ["Mixing Chamber Pressure", "All", self.sensor_history[-1][1], 0, 0, 135, 150],
+                ["Line Pressure", "All", self.sensor_history[-1][2], 0, 0, 40, 50],
                 ["Gas Sensor 1", "All", self.sensor_history[-1][3], 0, 0, 40, 50],
                 ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
                 ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]],
@@ -295,4 +290,4 @@ class Data_Handler:
                 self.UI.write_to_terminal(f"Unknown test type '{test[1]}' for {test[0]}")
         if violations != []:
             self.UI.write_to_terminal(f"Warning: {', '.join(violations)}")
-            self.cs.STATE = 0
+            self.cs.set_state(0) # Set state to emergency stop

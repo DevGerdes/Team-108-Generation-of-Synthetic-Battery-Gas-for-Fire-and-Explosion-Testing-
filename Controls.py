@@ -46,6 +46,10 @@ class ControlSystem:
                     # Custom setpoints should be sent immediately when state changes, so just maintain them here
                     self.dh.running = True
                     self.run_custom(self.custom_setpoints)
+                elif self.STATE == 4: # Ambient Calibration
+                    self.dh.running = True
+                    self.UI.write_to_terminal("[STATE: AMBIENT CALIBRATION] Starting ambient calibration...")
+                    self.ambient_calibration()
                 else:
                     print(f"[STATE: UNKNOWN] No handler for self.STATE '{self.STATE}'")
                     self.STATE = 0
@@ -131,3 +135,31 @@ class ControlSystem:
             self.UI.update_graphs() # Update graphs at each loop iteration
             self.UI.update_values_display()
             time.sleep(self.resolution)
+
+    def ambient_calibration(self):
+        self.UI.write_to_terminal("[CONTROLS: AMBIENT CALIBRATION] Starting ambient calibration procedure...")
+        self.dh.update_setpoints([1,0,0,0,0,0,0]) # Open valve and set no flow to all MFCs
+        calibration_start = time.time()
+        calibration_duration = 10 # seconds to run calibration for
+        while self.STATE == 4:
+            self.dh.check_emergency_conditions()
+            if self.STATE != 4:
+                break
+
+            if time.time() - calibration_start < calibration_duration: # if time within conditions recording time
+                self.dh.update_setpoints([1,0,0,0,0,0,0]) # send and recieve new data
+                self.UI.update_graphs() # Update graphs at each loop iteration
+                self.UI.update_values_display()
+                time.sleep(self.resolution)
+            else:
+                # process and store averages for each sensor value, then return to idle
+                # self.dh.sensor_history = [[time, Mixing Chamber Pressure, Line Pressure, Gas Sensor 1, Gas Sensor 2,...],...]
+                mixing_chamber_pressure_avg = np.mean([entry[1] for entry in self.dh.sensor_history])
+                line_pressure_avg = np.mean([entry[2] for entry in self.dh.sensor_history])
+                gas_sensor_1_avg = np.mean([entry[3] for entry in self.dh.sensor_history])
+                gas_sensor_2_avg = np.mean([entry[4] for entry in self.dh.sensor_history])
+
+                self.UI.state_saver("save", "mixing_chamber_pressure", mixing_chamber_pressure_avg)
+                self.UI.state_saver("save", "line_pressure", line_pressure_avg)
+                self.UI.state_saver("save", "gas_sensor_1", gas_sensor_1_avg)
+                self.UI.state_saver("save", "gas_sensor_2", gas_sensor_2_avg)
