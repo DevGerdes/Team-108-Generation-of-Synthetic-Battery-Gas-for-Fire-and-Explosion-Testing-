@@ -463,7 +463,7 @@ class UI_Object(tk.Tk):
 
     def update_graphs(self):
         """Update all graphs using stored data (no inputs)."""
-        now = time.time()
+        now = self.dh.run_start
         window = 60*5  # 5 minutes [seconds]
 
         # [t, ...] entries exsisting within window
@@ -471,9 +471,10 @@ class UI_Object(tk.Tk):
             return [d for d in data if len(d) > 0 and (now - d[0]) <= window]
 
         #Collect and filter histories
-        setpoints = recent(getattr(self.dh, "setpoint_history", []))
-        responses = recent(getattr(self.dh, "response_history", []))
-        sensors  = recent(getattr(self.dh, "sensor_history", []))
+        setpoints = recent(self.dh.setpoint_history)
+        responses = recent(self.dh.response_history)
+        sensors  = recent(self.dh.sensor_history)
+
         # split sensors into pressure and gas sensor lists
         pressure_sensors = [[s[0]] + s[1:3] for s in sensors if len(s) >= 3]
         gas_sensors = [[s[0]] + s[3:] for s in sensors if len(s) > 3]
@@ -528,10 +529,11 @@ class UI_Object(tk.Tk):
 
             try:
                 # Extract data for this MFC index
-                times_sp = [t for t, _ in setpoints]
-                sp_vals  = [vals[i] for _, vals in setpoints]
-                times_rp = [t for t, _ in responses]
-                rp_vals  = [vals[i] for _, vals in responses]
+                # Extract data for this MFC index
+                times_sp = [row[0]-now for row in setpoints]
+                sp_vals  = [row[i+1] for row in setpoints]
+                times_rp = [row[0]-now for row in responses]
+                rp_vals  = [row[i+1] for row in responses]
 
                 lines[0].set_data(times_sp, sp_vals)
                 lines[1].set_data(times_rp, rp_vals)
@@ -542,35 +544,35 @@ class UI_Object(tk.Tk):
 
         # Sensor Graphs
         if pressure_sensors:
-            times = [t for t, *_ in pressure_sensors]
-            with name == self.sensor_graphs[0]: # Pressure Sensors
-                graph = self.graphs[name]
-                ax = graph["ax"]
-                lines = graph["lines"]
+            times = [t-now for t, *_ in pressure_sensors]
+            name = self.sensor_graphs[0] # Pressure Sensors
+            graph = self.graphs[name]
+            ax = graph["ax"]
+            lines = graph["lines"]
 
-                try:
-                    lines[0].set_data(times, [row[1] for row in pressure_sensors])
-                    lines[1].set_data(times, [row[2] for row in pressure_sensors])
-                    ax.relim()
-                    ax.autoscale_view()
-                except Exception as e:
-                    self.write_to_terminal(f"[ERROR] Updating {name}: {e}")
+            try:
+                lines[0].set_data(times, [row[1] for row in pressure_sensors])
+                lines[1].set_data(times, [row[2] for row in pressure_sensors])
+                ax.relim()
+                ax.autoscale_view()
+            except Exception as e:
+                self.write_to_terminal(f"[ERROR] Updating {name}: {e}")
                     
         # Gas sensor Graphs
         if gas_sensors:
-            times = [t for t, *_ in gas_sensors]
-            with name == self.sensor_graphs[1]: # Gas Sensors
-                graph = self.graphs[name]
-                ax = graph["ax"]
-                lines = graph["lines"]
+            times = [t-now for t, *_ in gas_sensors]
+            name = self.sensor_graphs[1] # Gas Sensors
+            graph = self.graphs[name]
+            ax = graph["ax"]
+            lines = graph["lines"]
 
-                try:
-                    lines[0].set_data(times, [row[1] for row in gas_sensors])
-                    lines[1].set_data(times, [row[2] for row in gas_sensors])
-                    ax.relim()
-                    ax.autoscale_view()
-                except Exception as e:
-                    self.write_to_terminal(f"[ERROR] Updating {name}: {e}")
+            try:
+                lines[0].set_data(times, [row[1] for row in gas_sensors])
+                lines[1].set_data(times, [row[2] for row in gas_sensors])
+                ax.relim()
+                ax.autoscale_view()
+            except Exception as e:
+                self.write_to_terminal(f"[ERROR] Updating {name}: {e}")
         # else:
         #     # Clear all if no sensor data
         #     for name in self.sensor_graphs:
@@ -712,19 +714,19 @@ class UI_Object(tk.Tk):
             return
 
         # --- extract time (assume uniform) ---
-        time = [row[0] for row in self.dh.response_history]
+        time = [row[0]-self.dh.run_start for row in self.dh.response_history]
 
-        n_mfc_set = len(self.dh.setpoint_history[0][1])
-        n_mfc_resp = len(self.dh.response_history[0][1])
-        n_sensors = len(self.dh.sensor_history[0]) - 1
+        n_mfc_set = 5
+        n_mfc_resp = 5
+        n_sensors = 4 
 
         data = {"Time": time}
 
         for i in range(n_mfc_set):
-            data[f"MFC {i+1} setpoint"] = [row[1][i] for row in self.dh.setpoint_history]
+            data[f"MFC {i+1} setpoint"] = [row[i+1] for row in self.dh.setpoint_history]
 
         for i in range(n_mfc_resp):
-            data[f"MFC {i+1} response"] = [row[1][i] for row in self.dh.response_history]
+            data[f"MFC {i+1} response"] = [row[i+1] for row in self.dh.response_history]
 
         sensor_names = ["Pressure 1", "Pressure 2", "Gas 1", "Gas 2"]
         for i in range(n_sensors):
@@ -735,7 +737,7 @@ class UI_Object(tk.Tk):
 
         pd.DataFrame(data).to_excel(path, index=False)
 
-    def state_saver(action, var_name, value=None):
+    def state_saver(self,action, var_name, value):
         FILE_PATH = "state_save.csv"
 
         # Ensure file exists

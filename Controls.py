@@ -40,21 +40,26 @@ class ControlSystem:
                     self.dh.running = False
                     self.idle()
                 elif self.STATE == 2: # Run Test
+                    self.dh.run_start = time.time()
                     self.dh.running = True
                     self.run_test()
                 elif self.STATE == 3: # Run custom setpoints
                     # Custom setpoints should be sent immediately when state changes, so just maintain them here
+                    self.dh.run_start = time.time()
                     self.dh.running = True
                     self.run_custom(self.custom_setpoints)
                 elif self.STATE == 4: # Ambient Calibration
+                    self.dh.run_start = time.time()
                     self.dh.running = True
                     self.UI.write_to_terminal("[STATE: AMBIENT CALIBRATION] Starting ambient calibration...")
                     self.ambient_calibration()
+                    self.set_state(1) # Return to idle when done
+
                 else:
                     print(f"[STATE: UNKNOWN] No handler for self.STATE '{self.STATE}'")
                     self.STATE = 0
                     self.emergency_stop()
-            time.sleep(self.resolution)
+            time.sleep(self.resolution/10)
 
     # Control Methods
     def start(self):
@@ -87,7 +92,7 @@ class ControlSystem:
 
     def idle(self):
         self.dh.update_setpoints([1,0,0,0,0,0,0]) # Send zero flow to all MFC's and close valve
-        self.UI.write_to_terminal("[STATE: IDLE System is standing by...")
+        self.UI.write_to_terminal("[STATE: IDLE] System is standing by...")
             
 
     def run_test(self):
@@ -124,6 +129,8 @@ class ControlSystem:
             self.UI.update_graphs() # Update graphs at each loop iteration
             self.UI.update_values_display()
             time.sleep(self.resolution)
+        
+        self.set_state(1) # Return to idle when done
 
     def run_custom(self, setpoints):
         self.UI.write_to_terminal(f"[CONTROLS: RUNNING CUSTOM SETPOINTS]: {setpoints}")
@@ -140,7 +147,7 @@ class ControlSystem:
         self.UI.write_to_terminal("[CONTROLS: AMBIENT CALIBRATION] Starting ambient calibration procedure...")
         self.dh.update_setpoints([1,0,0,0,0,0,0]) # Open valve and set no flow to all MFCs
         calibration_start = time.time()
-        calibration_duration = 10 # seconds to run calibration for
+        calibration_duration = 5 # seconds to run calibration for
         while self.STATE == 4:
             if self.STATE != 4:
                 break
@@ -149,7 +156,7 @@ class ControlSystem:
                 self.dh.update_setpoints([1,0,0,0,0,0,0]) # send and recieve new data
                 self.UI.update_graphs() # Update graphs at each loop iteration
                 self.UI.update_values_display()
-                time.sleep(self.resolution)
+                #time.sleep(self.resolution)
             else:
                 # process and store averages for each sensor value, then return to idle
                 # self.dh.sensor_history = [[time, Mixing Chamber Pressure, Line Pressure, Gas Sensor 1, Gas Sensor 2,...],...]
@@ -158,7 +165,10 @@ class ControlSystem:
                 gas_sensor_1_avg = np.mean([entry[3] for entry in self.dh.sensor_history])
                 gas_sensor_2_avg = np.mean([entry[4] for entry in self.dh.sensor_history])
 
-                self.UI.state_saver("save", "mixing_chamber_pressure", mixing_chamber_pressure_avg)
-                self.UI.state_saver("save", "line_pressure", line_pressure_avg)
-                self.UI.state_saver("save", "gas_sensor_1", gas_sensor_1_avg)
-                self.UI.state_saver("save", "gas_sensor_2", gas_sensor_2_avg)
+
+                self.UI.state_saver("store", "mixing_chamber_pressure", mixing_chamber_pressure_avg)
+                self.UI.state_saver("store", "line_pressure", line_pressure_avg)
+                self.UI.state_saver("store", "gas_sensor_1", gas_sensor_1_avg)
+                self.UI.state_saver("store", "gas_sensor_2", gas_sensor_2_avg)
+
+                break

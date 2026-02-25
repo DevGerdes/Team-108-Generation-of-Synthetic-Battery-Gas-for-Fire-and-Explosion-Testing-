@@ -32,6 +32,7 @@ class Data_Handler:
         self.timeout = 1  # seconds
         self.delimiter = ","
         self.running = False
+        self.run_start = 0
         self.thread = None
         self.serial = None
         self.num_mfcs = 0
@@ -103,7 +104,6 @@ class Data_Handler:
 
     def send_data(self,new_setpoints):
         """Send the list of data values to Arduino."""
-        self.UI.write_to_terminal(f"[Data_Handler] Sending setpoints: {new_setpoints}")
         if self.Arduino_connected == False: # check if arduino connected
             self.UI.write_to_terminal("[Data_Handler] Cannot send data, Arduino not connected.")
             return
@@ -115,7 +115,6 @@ class Data_Handler:
             out_string = self.delimiter.join(map(str, new_setpoints)) + "\n"
             self.serial.write(out_string.encode("utf-8")) # Send the data
             self.setpoint_history.append([time.time(), new_setpoints[2],new_setpoints[3],new_setpoints[4],new_setpoints[5],new_setpoints[6]]) # Save mfc setpoints
-            self.UI.write_to_terminal(f"[Data_Handler] Sent data: {out_string.strip()}")
 
         except Exception as e:
             self.UI.write_to_terminal(f"Error sending data: {e}")
@@ -125,7 +124,6 @@ class Data_Handler:
 
     def read_data(self):
         """Read and parse incoming data from Arduino with seq heartbeat check."""
-        self.UI.write_to_terminal("Checking for incoming data from Arduino...")
         # if not self.serial or not self.serial.in_waiting:
         #     self.UI.write_to_terminal("No data available to read.")
         #     return
@@ -164,7 +162,6 @@ class Data_Handler:
             self.response_history.append([t, float(parts[3]),float(parts[4]),float(parts[5]),float(parts[6]),float(parts[7])]) # Save mfc responses
             self.valve_history.append([t, int(parts[2])])
             self.sensor_history.append([t, float(parts[8]),float(parts[9]),float(parts[10]),float(parts[11])]) #[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2]
-            self.UI.write_to_terminal(f"[Data_Handler] Received data: Seq={seq}, Valve={self.valve_history[-1]}, MFCs={self.response_history[-1][1:]}, Sensors={self.sensor_history[-1][1:]}")
 
         except Exception as e:
             self.UI.write_to_terminal(f"[Data_Handler] Error reading arduino data: {e}")
@@ -189,7 +186,6 @@ class Data_Handler:
         #     self.mfc_response_history.append([time.time(),[self.sim_mfcs[i].get_value() for i in range(len(self.sim_mfcs))]])
 
         if self.Arduino_connected: # Running Arduino communication
-            self.UI.write_to_terminal("Sending Setpoints")
             self.send_data(new_setpoints)
         else:
             self.UI.write_to_terminal("[Data_Handler] Unknown operation mode.")
