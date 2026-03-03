@@ -22,16 +22,17 @@ class Data_Handler:
         # mfc_history = [ [time1,[mfc1_response,mfc2_response,...,Valve_State]] , [time2,[mfc1_response,mfc2_response,...,Valve_State]] , ...]
         self.setpoint_history = []
         self.response_history = [] 
-        self.sensor_history = [] # [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,...],...]
+        self.sensor_history = [] # [[time, Mixing Chamber Pressure, Line Pressure, Gas Sensor 1, Gas Sensor 2,...],...]
         self.valve_history = [] # [[time, valve_state],...]
 
         # Arduino Serial Communication Parameters
         self.Arduino_connected = False
         self.port = "COM3"
-        self.baudrate = 93000
+        self.baudrate = 115200
         self.timeout = 1  # seconds
         self.delimiter = ","
         self.running = False
+        self.run_start = 0
         self.thread = None
         self.serial = None
         self.num_mfcs = 0
@@ -60,7 +61,7 @@ class Data_Handler:
         except serial.SerialException as e:
             self.UI.write_to_terminal(f"Error connecting to Arduino: {e}")
             self.serial = None
-        self.UI.update_indicators(name=self.UI.indicators[3])
+        self.UI.update_indicators(name=self.UI.indicators[2])
 
     def find_arduino_port(self):
         """
@@ -103,35 +104,42 @@ class Data_Handler:
 
     def send_data(self,new_setpoints):
         """Send the list of data values to Arduino."""
-        self.UI.write_to_terminal(f"[Data_Handler] Sending setpoints: {new_setpoints}")
         if self.Arduino_connected == False: # check if arduino connected
             self.UI.write_to_terminal("[Data_Handler] Cannot send data, Arduino not connected.")
             return
 
         try:
+            # new_setpoints = [State (3 = custom setpoints), Valve, MFC1, MFC2, MFC3, MFC4, MFC5]
             # Convert list to string for sending
             # Example: "1.0,0,23.4\n"
             out_string = self.delimiter.join(map(str, new_setpoints)) + "\n"
-            self.serial.write(out_string.encode("utf-8"))
-            self.setpoint_history.append([time.time(),enumerate(new_setpoints)]) # Save mfc and valve setpoints
+            self.serial.write(out_string.encode("utf-8")) # Send the data
+            self.setpoint_history.append([time.time(), new_setpoints[2],new_setpoints[3],new_setpoints[4],new_setpoints[5],new_setpoints[6]]) # Save mfc setpoints
+
         except Exception as e:
             self.UI.write_to_terminal(f"Error sending data: {e}")
 
-        self.read_data() # Immediately read response after sending setpoints to minimize delay
+
+        self.read_data() # Immediately read response after sending setpoints
 
     def read_data(self):
         """Read and parse incoming data from Arduino with seq heartbeat check."""
-        self.UI.write_to_terminal("Checking for incoming data from Arduino...")
-        if not self.serial or not self.serial.in_waiting:
-            return
+        # if not self.serial or not self.serial.in_waiting:
+        #     self.UI.write_to_terminal("No data available to read.")
+        #     return
 
         try:
             line = self.serial.readline().decode("utf-8", errors="ignore").strip()
+            # Should recieve:
+            # Seq, State, Valve state, MFC1 Response, MFC2 Response, MFC3 Response,
+            #  MFC4 Response, MFC5 Response, Mixing Chamber Pressure, Pipe Pressure, Gas Sensor 1, Gas Sensor 2
             if not line:
+                self.UI.write_to_terminal("Received empty line from Arduino.")
                 return
 
             parts = line.split(",")
-            if len(parts) != 15:
+            if len(parts) != 12: # Should recieve the number of elements as descirbed above
+                self.UI.write_to_terminal(f"Malformed data packet: {line}")
                 return  # hard drop malformed packets
 
             seq = int(parts[0])
@@ -140,29 +148,20 @@ class Data_Handler:
             if not hasattr(self, "last_seq"):
                 self.last_seq = seq
                 self.heartbeat = 0
-                return
 
             # heartbeat logic
             if seq == self.last_seq:
                 self.heartbeat += 1
-                return
 
             # seq changed → accept data
             self.last_seq = seq
             self.heartbeat = 0
             t = time.time()
 
-            # parse values
-            valve = int(parts[2])
-
-            mfc_vals = list(map(float, parts[3:8]))          # MFC1–MFC5
-            sensor_vals = list(map(float, parts[8:13]))      # pressures + gas sensors
-
-            # store histories (raw lists, no labels)
-            self.mfc_response_history.append([t, *mfc_vals])
-            self.valve_history.append([t, valve])
-            self.sensor_history.append([t, *sensor_vals])
-            self.UI.write_to_terminal(f"[Data_Handler] Received data: Seq={seq}, Valve={valve}, MFCs={mfc_vals}, Sensors={sensor_vals}")
+            # parse values and store histories
+            self.response_history.append([t, float(parts[3]),float(parts[4]),float(parts[5]),float(parts[6]),float(parts[7])]) # Save mfc responses
+            self.valve_history.append([t, int(parts[2])])
+            self.sensor_history.append([t, float(parts[8]),float(parts[9]),float(parts[10]),float(parts[11])]) #[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2]
 
         except Exception as e:
             self.UI.write_to_terminal(f"[Data_Handler] Error reading arduino data: {e}")
@@ -175,65 +174,95 @@ class Data_Handler:
             self.UI.write_to_terminal("[Data_Handler] Cannot update setpoints, communication/simulation not running.")
             return
         
-        if self.do_sim: # Running a simulation
-            if len(new_setpoints) != len(self.sim_mfcs): # check for data compatability
-                self.UI.write_to_terminal(f"[Data_Handler] Number of setpoints ({len(new_setpoints)}) does not match number of simulated MFCs ({len(self.sim_mfcs)}).")
-                return
-            for i in range(len(self.sim_mfcs)): # Update each simulated MFC setpoint
-                self.sim_mfcs[i].set_setpoint(new_setpoints[i])
-            self.setpoint_history.append([time.time(),enumerate(new_setpoints)]) # Save mfc setpoints
+        # if self.do_sim: # Running a simulation
+        #     if len(new_setpoints) != len(self.sim_mfcs): # check for data compatability
+        #         self.UI.write_to_terminal(f"[Data_Handler] Number of setpoints ({len(new_setpoints)}) does not match number of simulated MFCs ({len(self.sim_mfcs)}).")
+        #         return
+        #     for i in range(len(self.sim_mfcs)): # Update each simulated MFC setpoint
+        #         self.sim_mfcs[i].set_setpoint(new_setpoints[i])
+        #     self.setpoint_history.append([time.time(),enumerate(new_setpoints)]) # Save mfc setpoints
 
-            # save mfc response current value
-            self.mfc_response_history.append([time.time(),[self.sim_mfcs[i].get_value() for i in range(len(self.sim_mfcs))]])
+        #     # save mfc response current value
+        #     self.mfc_response_history.append([time.time(),[self.sim_mfcs[i].get_value() for i in range(len(self.sim_mfcs))]])
 
-        elif not self.do_sim: # Running Arduino communication
-            self.UI.write_to_terminal("Sending Setpoints")
+        if self.Arduino_connected: # Running Arduino communication
             self.send_data(new_setpoints)
         else:
             self.UI.write_to_terminal("[Data_Handler] Unknown operation mode.")
 
-    ### # Define similair functions for simulation instead of arduino communication
-    def start_sim(self,number_of_mfcs=5):
-        """Create and start mfc simulation objects"""
-        self.do_sim = True
-        self.running = True
-        self.sim_mfcs = []
-        self.num_mfcs = number_of_mfcs
-        for i in range(self.num_mfcs):
-            self.sim_mfcs.append(MFC_Simulator())
-            self.sim_mfcs[i].start()
+    # ### # Define similair functions for simulation instead of arduino communication
+    # def start_sim(self,number_of_mfcs=5):
+    #     """Create and start mfc simulation objects"""
+    #     self.do_sim = True
+    #     self.running = True
+    #     self.sim_mfcs = []
+    #     self.num_mfcs = number_of_mfcs
+    #     for i in range(self.num_mfcs):
+    #         self.sim_mfcs.append(MFC_Simulator())
+    #         self.sim_mfcs[i].start()
 
-    def end_sim(self):
-        """Stop and fully clear all MFC simulators."""
-        self.do_sim = False
-        for sim in self.sim_mfcs:
-            try:
-                sim.stop()
-            except Exception as e:
-                print(f"Warning: failed to stop simulator: {e}")
-        self.sim_mfcs.clear()  # now it's []
-        gc.collect()
+    # def end_sim(self):
+    #     """Stop and fully clear all MFC simulators."""
+    #     self.do_sim = False
+    #     for sim in self.sim_mfcs:
+    #         try:
+    #             sim.stop()
+    #         except Exception as e:
+    #             print(f"Warning: failed to stop simulator: {e}")
+    #     self.sim_mfcs.clear()  # now it's []
+    #     gc.collect()
 
-    def check_emergency_conditions(self, new_setpoints):
-        # Emergency condition values
+    def check_emergency_conditions(self):
+        # Emergency condition test frames
         # Name, Test type, Value, Min, warning min, warning max, max 
-        # If test is binary (T/F) then use 0,0,0,1 where last value is desired state
-        num_mfcs = len(new_setpoints)
-        MFC_setpoint_tests = [[f"MFC {i+1} Setpoint", "All", new_setpoints[i], 0, 0, 9, 10] for i in range(num_mfcs)]
-        MFC_response_tests = [[f"MFC {i+1} Response", "All", self.mfc_response_history[-1][i+1], 0, 0, 1.1*MFC_setpoint_tests[i], 1.2*MFC_setpoint_tests[i]] for i in range(num_mfcs)] # Warning at over 110% of setpoint, max at 120%
-        MFC_response_Error_delta_tests = [[f"MFC {i+1} Response Error Delta", "All", abs(self.mfc_response_history[-1][i+1]-new_setpoints[i])/new_setpoints[i], 0, 0, 0.1, 0.2] for i in range(num_mfcs)] # Warning at over 10% error, max at 20%
-
-        emergency_tests = [
-            MFC_setpoint_tests,
-            MFC_response_tests,
-            MFC_response_Error_delta_tests,
-            ["Pressure Sensor 1", "All", self.sensor_history[-1][1], 0, 0, 135, 150],
-            ["Pressure Sensor 2", "All", self.sensor_history[-1][2], 0, 0, 40, 50],
-            ["Gas Sensor 1", "All", self.sensor_history[-1][3], 0, 0, 40, 50],
-            ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
-            ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]], # test if valve state matches the most recent setpoint issued
-            ["Arduino Connected", "Binary", self.Arduino_connected, 0, 0, 1, 1] # 0 = disconnected, 1 = connected
+        # If test is binary (T/F) then use 0,0,0,1 where last value is desired state, first is opposite, middle ignored
+        MFC_setpoint_tests = [
+            [f"MFC {i} Setpoint",
+             "All",
+               self.setpoint_history[-1][i], 0, 0, 9, 10]
+            for i in range(1,len(self.setpoint_history[-1]))
         ]
+
+        MFC_response_tests = [
+            [
+                f"MFC {i} Response",
+                "All",
+                self.response_history[-1][i],
+                0, 0,
+                1.1 * self.setpoint_history[-1][i], # Warning at over 110% of setpoint, max at 120%
+                1.2 * self.setpoint_history[-1][i],
+            ]
+            for i in range(1,len(self.response_history[-1]))
+        ]
+    
+        # Warning at over 10% error, max at 20%
+        MFC_response_Error_delta_tests = [
+            [
+                f"MFC {i+1} Response Error Delta",
+                "All",
+                abs(self.response_history[-1][i]- self.setpoint_history[-1][i]) / max(self.setpoint_history[-1][i], 1e-9),
+                0, 0, 0.1, 0.2,
+            ]
+            for i in range(len(self.setpoint_history[-1]))
+        ]
+        
+
+        # self.sensor_history = [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,...],...]
+
+        emergency_tests = (
+            MFC_setpoint_tests
+            + MFC_response_tests
+            + MFC_response_Error_delta_tests
+            + [
+                ["Mixing Chamber Pressure", "All", self.sensor_history[-1][1], 0, 0, 135, 150],
+                ["Line Pressure", "All", self.sensor_history[-1][2], 0, 0, 40, 50],
+                ["Gas Sensor 1", "All", self.sensor_history[-1][3], 0, 0, 40, 50],
+                ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
+                ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]],
+                ["Arduino Connected", "Binary", self.Arduino_connected, 0, 0, 1, 1],
+            ]
+        )
+
 
         # Cylce through each test and check for violations
         violations = []
@@ -255,4 +284,4 @@ class Data_Handler:
                 self.UI.write_to_terminal(f"Unknown test type '{test[1]}' for {test[0]}")
         if violations != []:
             self.UI.write_to_terminal(f"Warning: {', '.join(violations)}")
-            self.cs.STATE = 0
+            self.cs.set_state(0) # Set state to emergency stop

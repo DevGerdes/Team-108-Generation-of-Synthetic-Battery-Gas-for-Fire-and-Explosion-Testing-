@@ -24,28 +24,42 @@ class ControlSystem:
         #  1 = Idle
         # 2 = Run Test
         # 3 = Run custom setpoints
-        self.STATE = 1  # Default to Idle state  
+        self.STATE = 1  # Default to Idle state 
+        self.oldstate = 1 # for controls loop logic
         self.custom_setpoints = [] # Placeholder for custom setpoints (STATE,Valve, MFC1, MFC2, MFC3, MFC4, MFC5)
 
     # ---------- Core Loop ---------- #
     def _loop(self):
         while self.running:
-            oldstate = self.STATE
-            if not self.STATE == oldstate: # If state has changed
+            if not self.STATE == self.oldstate: # If state has changed
+                self.oldstate = self.STATE
                 if self.STATE == 0: # Emergency Stop
+                    self.dh.running = False
                     self.emergency_stop()
                 elif self.STATE == 1: # Idle
+                    self.dh.running = False
                     self.idle()
                 elif self.STATE == 2: # Run Test
+                    self.dh.run_start = time.time()
+                    self.dh.running = True
                     self.run_test()
                 elif self.STATE == 3: # Run custom setpoints
                     # Custom setpoints should be sent immediately when state changes, so just maintain them here
-                    self.run_custom()
+                    self.dh.run_start = time.time()
+                    self.dh.running = True
+                    self.run_custom(self.custom_setpoints)
+                elif self.STATE == 4: # Ambient Calibration
+                    self.dh.run_start = time.time()
+                    self.dh.running = True
+                    self.UI.write_to_terminal("[STATE: AMBIENT CALIBRATION] Starting ambient calibration...")
+                    self.ambient_calibration()
+                    self.set_state(1) # Return to idle when done
+
                 else:
                     print(f"[STATE: UNKNOWN] No handler for self.STATE '{self.STATE}'")
                     self.STATE = 0
                     self.emergency_stop()
-            time.sleep(self.resolution)
+            time.sleep(self.resolution/10)
 
     # Control Methods
     def start(self):
@@ -78,7 +92,7 @@ class ControlSystem:
 
     def idle(self):
         self.dh.update_setpoints([1,0,0,0,0,0,0]) # Send zero flow to all MFC's and close valve
-        self.UI.write_to_terminal("[STATE: IDLE System is standing by...")
+        self.UI.write_to_terminal("[STATE: IDLE] System is standing by...")
             
 
     def run_test(self):
@@ -115,11 +129,11 @@ class ControlSystem:
             self.UI.update_graphs() # Update graphs at each loop iteration
             self.UI.update_values_display()
             time.sleep(self.resolution)
+        
+        self.set_state(1) # Return to idle when done
 
     def run_custom(self, setpoints):
         self.UI.write_to_terminal(f"[CONTROLS: RUNNING CUSTOM SETPOINTS]: {setpoints}")
-        if self.STATE != 3:
-            self.set_state(3)
         self.dh.update_setpoints(setpoints)
         while self.STATE == 3:
             self.dh.check_emergency_conditions()
@@ -128,3 +142,33 @@ class ControlSystem:
             self.UI.update_graphs() # Update graphs at each loop iteration
             self.UI.update_values_display()
             time.sleep(self.resolution)
+
+    def ambient_calibration(self):
+        self.UI.write_to_terminal("[CONTROLS: AMBIENT CALIBRATION] Starting ambient calibration procedure...")
+        self.dh.update_setpoints([1,0,0,0,0,0,0]) # Open valve and set no flow to all MFCs
+        calibration_start = time.time()
+        calibration_duration = 5 # seconds to run calibration for
+        while self.STATE == 4:
+            if self.STATE != 4:
+                break
+
+            if time.time() - calibration_start < calibration_duration: # if time within conditions recording time
+                self.dh.update_setpoints([1,0,0,0,0,0,0]) # send and recieve new data
+                self.UI.update_graphs() # Update graphs at each loop iteration
+                self.UI.update_values_display()
+                #time.sleep(self.resolution)
+            else:
+                # process and store averages for each sensor value, then return to idle
+                # self.dh.sensor_history = [[time, Mixing Chamber Pressure, Line Pressure, Gas Sensor 1, Gas Sensor 2,...],...]
+                mixing_chamber_pressure_avg = np.mean([entry[1] for entry in self.dh.sensor_history])
+                line_pressure_avg = np.mean([entry[2] for entry in self.dh.sensor_history])
+                gas_sensor_1_avg = np.mean([entry[3] for entry in self.dh.sensor_history])
+                gas_sensor_2_avg = np.mean([entry[4] for entry in self.dh.sensor_history])
+
+
+                self.UI.state_saver("store", "mixing_chamber_pressure", mixing_chamber_pressure_avg)
+                self.UI.state_saver("store", "line_pressure", line_pressure_avg)
+                self.UI.state_saver("store", "gas_sensor_1", gas_sensor_1_avg)
+                self.UI.state_saver("store", "gas_sensor_2", gas_sensor_2_avg)
+
+                break
