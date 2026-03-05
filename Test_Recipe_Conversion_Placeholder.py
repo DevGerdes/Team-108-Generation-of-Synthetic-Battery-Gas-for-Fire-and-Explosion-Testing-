@@ -17,7 +17,7 @@ def load_and_interpolate_excel(resolution=0.1):
         print("Error: One or more column titles are invalid. "
             f"Expected only these: {valid_titles}")
         return df.columns.tolist(), [[0] * len(df.columns)]
-    # ---- 2. Check for empty cells ----
+    # ---- 2. Check for empty cells --
     if df.isnull().values.any():
         print("Error: The file contains empty cells. "
             "Please fill or remove missing data before loading.")
@@ -113,6 +113,7 @@ def convert_testplan_to_MFC_flows():
     load_and_interpolate_excel() # load in and populate test_columns and test_plan variables
     plot_test_data("User Graph","Percent of Composition") # What the user will see
     ############## YOUR CODE HERE
+    Heat_Combust_G1 = 
     # May want to convert test_plan to columns rather than current format
     # data = list(zip(*test_plan)) # [time, var1, var2, var3, ...]
     # time = data[0]
