@@ -1,14 +1,15 @@
 #include <stdlib.h>
+#include <Wire.h>
 
 const uint32_t BAUD = 115200;
 
 int STATE = 0; // Default to emergency stop to close everything down
 // MFC Setpoint Values
-float MFC1 = 0;
-float MFC2 = 0;
-float MFC3 = 0;
-float MFC4 = 0;
-float MFC5 = 0;
+float MFC1_store = 0;
+float MFC2_store = 0;
+float MFC3_store = 0;
+float MFC4_store = 0;
+float MFC5_store = 0;
 // Valve Setpoint Value
 int VALVE = 0; // Default closed, 1 = open
 // MFC Response Values
@@ -24,12 +25,7 @@ float GasSensor1 = 0;
 float GasSensor2 = 0;
 
 // ----- Pin Assignments -----
-// MFC Setpoint outputs
-const uint8_t MFC1_SET_PIN = A11;
-const uint8_t MFC2_SET_PIN = A1;
-const uint8_t MFC3_SET_PIN = A2;
-const uint8_t MFC4_SET_PIN = A3;
-const uint8_t MFC5_SET_PIN = A4;
+// MFC Setpoints assigned in DAC connection
 // MFC Response inputs
 const uint8_t MFC1_READ_PIN = A5;
 const uint8_t MFC2_READ_PIN = A6;
@@ -46,7 +42,7 @@ const uint8_t GasSensor2_PIN = A13;
 const uint8_t SENSOR5_PIN = A14;
 
 
-#define OUTBUF_SIZE 160 // Max charecter length for serial out. Makes things truncate safely for sending if too long, and can be increased if needed (shouldnt need to)
+#define OUTBUF_SIZE 256 // Max charecter length for serial out. Makes things truncate safely for sending if too long, and can be increased if needed (shouldnt need to)
 char lineBuffer[96];
 uint8_t bufPos = 0;
 
@@ -54,11 +50,30 @@ char outBuffer[OUTBUF_SIZE]; // the actual buffered output message
 uint32_t seq = 1;
 
 
+// Vairables for DAC connection 
+#define MCP4728_ADDR 0x60 // 4 output DAC adress
+#define MCP4725_ADDR 0x61  // 1 output DAC, A0 pulled HIGH
+#define MFC1 0
+#define MFC2 1
+#define MFC3 2
+#define MFC4 3
+#define MFC5 4
+#define VDD 5.0
+
 void setup()
 {
+    // Begin serial communication with laptop
     Serial.begin(BAUD);
     pinMode(VALVE_SET_PIN, OUTPUT);
     pinMode(LED_BUILTIN,OUTPUT);
+
+    // Begin Comminication with DAC, defualt to 0 flow
+    DAC_begin();
+    DAC_writeVoltage(MFC1, 0.0);
+    DAC_writeVoltage(MFC2, 0.0);
+    DAC_writeVoltage(MFC3, 0.0);
+    DAC_writeVoltage(MFC4, 0.0);
+    DAC_writeVoltage(MFC5, 0.0);
 }
 
 void loop()
@@ -86,6 +101,44 @@ void loop()
         }
     }
 }
+
+void DAC_begin() {
+  Wire.begin();
+}
+
+/**
+ * Write a target voltage to a specified DAC channel.
+ * Channels A–D are on the MCP4728, channel E is on the MCP4725.
+ *
+ * @param channel   MFC1-MFC5
+ * @param voltage   Desired output voltage (0.0 – 5.0V)
+ */
+void DAC_writeVoltage(uint8_t channel, float voltage) {
+  voltage = constrain(voltage, 0.0, VDD);
+  uint16_t rawValue = (uint16_t)((voltage / VDD) * 4095.0);
+
+  if (channel == MFC5) {
+    // MCP4725: fast-write mode, two bytes: upper 4 bits then lower 8 bits
+    Wire.beginTransmission(MCP4725_ADDR);
+    Wire.write((rawValue >> 8) & 0x0F);
+    Wire.write(rawValue & 0xFF);
+    Wire.endTransmission();
+  } else {
+    // MCP4728: multi-write command for the specified channel
+    uint8_t cmd   = 0x40 | (channel << 1);
+    uint8_t byte1 = (rawValue >> 8) & 0x0F;
+    uint8_t byte2 = rawValue & 0xFF;
+
+    Wire.beginTransmission(MCP4728_ADDR);
+    Wire.write(cmd);
+    Wire.write(byte1);
+    Wire.write(byte2);
+    Wire.endTransmission();
+  }
+}
+
+
+
 
 void sendError(const char *msg)
 {
@@ -151,42 +204,43 @@ bool parseLine(const char *s)
 
         if (STATE == 0)
         {
-            analogWrite(MFC1_SET_PIN, 0);
-            analogWrite(MFC2_SET_PIN, 0);
-            analogWrite(MFC3_SET_PIN, 0);
-            analogWrite(MFC4_SET_PIN, 0);
-            analogWrite(MFC5_SET_PIN, 0);
-
+            DAC_writeVoltage(MFC1, 0);
+            DAC_writeVoltage(MFC2, 0);
+            DAC_writeVoltage(MFC3, 0);
+            DAC_writeVoltage(MFC4, 0);
+            DAC_writeVoltage(MFC5, 0);
+            VALVE = 0;
             digitalWrite(VALVE_SET_PIN, 0);
         }
     }
 
     VALVE = newValve;
-    MFC1 = m1;
-    MFC2 = m2;
-    MFC3 = m3;
-    MFC4 = m4;
-    MFC5 = m5;
+    MFC1_store = m1;
+    MFC2_store = m2;
+    MFC3_store = m3;
+    MFC4_store = m4;
+    MFC5_store = m5;
 
     applySetpoints();
 
     return true;
 }
 
-uint16_t mfcToPwm(float slpm)
+float mfcSlpmToVoltage(float slpm)
 {
-    if (slpm < 0) slpm = 0;
+    if (slpm < 0)   slpm = 0;
     if (slpm > 500) slpm = 500;
-    return (uint16_t)((slpm / 500.0f) * 255.0f);
+    return (slpm / 500.0f) * 5.0f;  // returns 0.0–5.0f
 }
 
 void applySetpoints()
 {
-    analogWrite(MFC1_SET_PIN, mfcToPwm(MFC1));
-    analogWrite(MFC2_SET_PIN, mfcToPwm(MFC2));
-    analogWrite(MFC3_SET_PIN, mfcToPwm(MFC3));
-    analogWrite(MFC4_SET_PIN, mfcToPwm(MFC4));
-    analogWrite(MFC5_SET_PIN, mfcToPwm(MFC5));
+    // Fix #1: use _store variables, not the #define channel indices
+    DAC_writeVoltage(MFC1, mfcSlpmToVoltage(MFC1_store));
+    DAC_writeVoltage(MFC2, mfcSlpmToVoltage(MFC2_store));
+    DAC_writeVoltage(MFC3, mfcSlpmToVoltage(MFC3_store));
+    DAC_writeVoltage(MFC4, mfcSlpmToVoltage(MFC4_store));
+    DAC_writeVoltage(MFC5, mfcSlpmToVoltage(MFC5_store));
 
     digitalWrite(VALVE_SET_PIN, VALVE ? HIGH : LOW);
 }
