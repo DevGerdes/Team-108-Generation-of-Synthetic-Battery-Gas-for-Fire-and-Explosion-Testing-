@@ -36,7 +36,7 @@ class UI_Object(tk.Tk):
         # Define names for main displays and buttons
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
-        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints","Save Data","Ambient Calibration"]
+        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints","Save Data","Clear Data","Ambient Calibration"]
         self.indicators = ["State","Valve","Arduino"]
 
         # Define graph names and variable names for overview display
@@ -403,7 +403,15 @@ class UI_Object(tk.Tk):
         if name == self.function_buttons[7]:  # Save Data button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.save_histories_to_excel()
-        if name == self.function_buttons[8]:  # Ambient Calibration button
+        if name == self.function_buttons[8]:  # Clear Data button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.dh.setpoint_history = [[0,0,0,0,0]]
+            self.dh.response_history = [[0,0,0,0,0]]
+            self.dh.sensor_history = [[0,0,0,0,0]]
+            self.dh.valve_history = [[0,0]]
+            self.update_graphs()
+            self.write_to_terminal("[INFO] All data histories cleared.")
+        if name == self.function_buttons[9]:  # Ambient Calibration button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.cs.set_state(4) # Set state to AMBIENT CALIBRATION
 
@@ -476,7 +484,7 @@ class UI_Object(tk.Tk):
         sensors  = recent(self.dh.sensor_history)
 
         # split sensors into pressure and gas sensor lists
-        pressure_sensors = [[s[0]] + s[1:3] for s in sensors if len(s) >= 3]
+        pressure_sensors = [[s[0]] + s[1:3] for s in sensors if len(s) > 3] # [[time, pressure1, pressure2],...]
         gas_sensors = [[s[0]] + s[3:] for s in sensors if len(s) > 3]
 
         # Test Plan Preview
@@ -520,15 +528,16 @@ class UI_Object(tk.Tk):
             lines = graph["lines"]
 
             # Verify data presence
-            if not setpoints or not responses: # If no data, continue
+            # if not setpoints or not responses: # If no data, continue
+                # setpoints = [[0,0,0,0,0]]  # Dummy data to prevent errors
+                # responses = [[0,0,0,0,0]]
                 # ax.clear()
                 # ax.set_title(name)
                 # ax.text(0.5, 0.5, "No MFC Data", color="gray",
                 #         ha="center", va="center", transform=ax.transAxes)
-                continue
+                # continue
 
             try:
-                # Extract data for this MFC index
                 # Extract data for this MFC index
                 times_sp = [row[0]-now for row in setpoints]
                 sp_vals  = [row[i+1] for row in setpoints]
@@ -544,7 +553,7 @@ class UI_Object(tk.Tk):
 
         # Sensor Graphs
         if pressure_sensors:
-            times = [t-now for t, *_ in pressure_sensors]
+            times = [row[0]-now for row in pressure_sensors]
             name = self.sensor_graphs[0] # Pressure Sensors
             graph = self.graphs[name]
             ax = graph["ax"]
@@ -560,7 +569,7 @@ class UI_Object(tk.Tk):
                     
         # Gas sensor Graphs
         if gas_sensors:
-            times = [t-now for t, *_ in gas_sensors]
+            times = [row[0]-now for row in gas_sensors]
             name = self.sensor_graphs[1] # Gas Sensors
             graph = self.graphs[name]
             ax = graph["ax"]

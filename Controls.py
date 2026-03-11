@@ -139,6 +139,7 @@ class ControlSystem:
             self.dh.check_emergency_conditions()
             if self.STATE != 3:
                 break
+            self.dh.update_setpoints(setpoints)
             self.UI.update_graphs() # Update graphs at each loop iteration
             self.UI.update_values_display()
             time.sleep(self.resolution)
