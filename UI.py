@@ -471,7 +471,7 @@ class UI_Object(tk.Tk):
 
     def update_graphs(self):
         """Update all graphs using stored data (no inputs)."""
-        now = self.dh.run_start
+        now = time.time()
         window = 60*5  # 5 minutes [seconds]
 
         # [t, ...] entries exsisting within window

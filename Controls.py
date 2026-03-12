@@ -148,7 +148,7 @@ class ControlSystem:
         self.UI.write_to_terminal("[CONTROLS: AMBIENT CALIBRATION] Starting ambient calibration procedure...")
         self.dh.update_setpoints([1,0,0,0,0,0,0]) # Open valve and set no flow to all MFCs
         calibration_start = time.time()
-        calibration_duration = 10 # seconds to run calibration for
+        calibration_duration = 30 # seconds to run calibration for
         while self.STATE == 4:
             if self.STATE != 4:
                 break
