@@ -18,11 +18,12 @@ float MFC2_RESPONSE = 0;
 float MFC3_RESPONSE = 0;
 float MFC4_RESPONSE = 0;
 float MFC5_RESPONSE = 0;
-// Sensor Values (hardcoded, independent)
+// Sensor Values
 float MixingChamberPressure = 0; 
 float PipePressure = 0;
 float GasSensor1 = 0;
 float GasSensor2 = 0;
+float TempSensor = 0;
 
 // ----- Pin Assignments -----
 // MFC Setpoints assigned in DAC connection
@@ -36,10 +37,10 @@ const uint8_t MFC5_READ_PIN = A9;
 const uint8_t VALVE_SET_PIN = 2; // Digital pin 2 (D2)
 // Sensor analog response pins
 const uint8_t MixingChamberPressure_PIN = A10;
-const uint8_t PipePressure_PIN = A0;
+const uint8_t PipePressure_PIN = A6;
 const uint8_t GasSensor1_PIN = A12;
 const uint8_t GasSensor2_PIN = A13;
-const uint8_t SENSOR5_PIN = A14;
+const uint8_t TempSensor_PIN = A11;
 
 
 #define OUTBUF_SIZE 256 // Max charecter length for serial out. Makes things truncate safely for sending if too long, and can be increased if needed (shouldnt need to)
@@ -246,10 +247,6 @@ void applySetpoints()
 }
 
 
-
-
-
-
 void sendLine()
 {
     readMfcResponses();
@@ -279,7 +276,8 @@ void sendLine()
     dtostrf(MixingChamberPressure, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
     dtostrf(PipePressure, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
     dtostrf(GasSensor1, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
-    dtostrf(GasSensor2, 0, 3, tmp); strcat(outBuffer, tmp);
+    dtostrf(GasSensor2, 0, 3, tmp); strcat(outBuffer, tmp);strcat(outBuffer, ",");
+    dtostrf(TempSensor, 0, 3, tmp); strcat(outBuffer, tmp);
 
     strcat(outBuffer, "\n");
 
@@ -293,10 +291,25 @@ float adcToSlpm(uint16_t adc) // Convert MFC read analog value to SLPM value
     if (adc > 1023) adc = 1023;
     return (adc / 1023.0f) * 500.0f;
 }
-float adcToUnits(uint16_t adc, float fullScale) // read and convert arbitrary sensor pin to arbitrary range
+float adcToUnits(uint16_t adc, float vMin, float vMax, float fullScale)
 {
-    if (adc > 1023) adc = 1023;
-    return (adc / 1023.0f) * fullScale;
+    const float vRef = 5.0f;
+    const float vPerCount = vRef / 1023.0f;
+
+    float voltage = adc * vPerCount;
+    voltage = constrain(voltage, vMin, vMax);
+
+    return ((voltage - vMin) / (vMax - vMin)) * fullScale;
+}
+float adcToThermocouple(uint16_t adc)
+{
+    const float vRef       = 5.0f;
+    const float vPerCount  = vRef / 1023.0f;
+    const float mVperDegC  = 0.005f;   // 5 mV/°C
+    const float offsetV    = 1.25f;    // 0°C = 1.25V
+
+    float voltage = adc * vPerCount;
+    return (voltage - offsetV) / mVperDegC;
 }
 
 void readMfcResponses()
@@ -309,10 +322,11 @@ void readMfcResponses()
 }
 void readSensors()
 {
-    MixingChamberPressure = adcToUnits(analogRead(MixingChamberPressure_PIN),150); // 150 psi full range
-    PipePressure = adcToUnits(analogRead(PipePressure_PIN),50); // 50 psi full range
-    GasSensor1 = adcToUnits(analogRead(GasSensor1_PIN),1); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
-    GasSensor2 = adcToUnits(analogRead(GasSensor2_PIN),1); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
+    MixingChamberPressure = adcToUnits(analogRead(MixingChamberPressure_PIN),0,5,150); // 150 psi full range
+    PipePressure = adcToUnits(analogRead(PipePressure_PIN),0.5,4.5,50); // 50 psi full range
+    GasSensor1 = adcToUnits(analogRead(GasSensor1_PIN),0,5,1); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
+    GasSensor2 = adcToUnits(analogRead(GasSensor2_PIN),0,5,1); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
+    TempSensor = adcToThermocouple(analogRead(TempSensor_PIN)); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
 }
 
 

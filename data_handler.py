@@ -22,7 +22,7 @@ class Data_Handler:
         # mfc_history = [ [time1,mfc1_response,mfc2_response,..] , [time2,mfc1_response,mfc2_response,...] , ...]
         self.setpoint_history = []
         self.response_history = [] 
-        self.sensor_history = [] # [[time, Mixing Chamber Pressure, Line Pressure, Gas Sensor 1, Gas Sensor 2],...]
+        self.sensor_history = [] # [[time, Mixing Chamber Pressure, Line Pressure, Gas Sensor 1, Gas Sensor 2, Temp Sensor],...]
         self.valve_history = [] # [[time, valve_state],...]
 
         # Arduino Serial Communication Parameters
@@ -112,13 +112,13 @@ class Data_Handler:
             line = self.serial.readline().decode("utf-8", errors="ignore").strip()
             # Should recieve:
             # Seq, State, Valve state, MFC1 Response, MFC2 Response, MFC3 Response,
-            #  MFC4 Response, MFC5 Response, Mixing Chamber Pressure, Pipe Pressure, Gas Sensor 1, Gas Sensor 2
+            #  MFC4 Response, MFC5 Response, Mixing Chamber Pressure, Pipe Pressure, Gas Sensor 1, Gas Sensor 2, Temp Sensor
             if not line:
                 self.UI.write_to_terminal("Received empty line from Arduino.")
                 return
 
             parts = line.split(",")
-            if len(parts) != 12: # Should recieve the number of elements as descirbed above
+            if len(parts) != 13: # Should recieve the number of elements as descirbed above
                 self.UI.write_to_terminal(f"Malformed data packet: {line}")
                 return  # hard drop malformed packets
 
@@ -141,7 +141,7 @@ class Data_Handler:
             # parse values and store histories
             self.response_history.append([t, float(parts[3]),float(parts[4]),float(parts[5]),float(parts[6]),float(parts[7])]) # Save mfc responses
             self.valve_history.append([t, int(parts[2])])
-            self.sensor_history.append([t, float(parts[8]),float(parts[9]),float(parts[10]),float(parts[11])]) #[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2]
+            self.sensor_history.append([t, float(parts[8]),float(parts[9]),float(parts[10]),float(parts[11]),float(parts[12])]) #[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2, Temp Sensor]
 
         except Exception as e:
             self.UI.write_to_terminal(f"[Data_Handler] Error reading arduino data: {e}")
@@ -240,7 +240,7 @@ class Data_Handler:
         ]
         
 
-        # self.sensor_history = [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,...],...]
+        # self.sensor_history = [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,Temp Sensor,...],...]
 
         emergency_tests = (
             MFC_setpoint_tests
