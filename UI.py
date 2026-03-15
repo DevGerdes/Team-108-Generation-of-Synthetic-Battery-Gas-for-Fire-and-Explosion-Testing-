@@ -43,7 +43,7 @@ class UI_Object(tk.Tk):
         self.mfc_graphs = ["Test Plan Preview", "MFC 1 Response", "MFC 2 Response","MFC 3 Response","MFC 4 Response","MFC 5 Response",]
         self.sensor_graphs = ["Pressure Sensors","Gas Sensors"]
         self.graph_names = self.mfc_graphs+self.sensor_graphs
-        self.graph_variable_names = [["Composition Percents", "Heat Release Rate (kW)"],"Flow Rate (SLPM)", "Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)", "Pressure (psi)","Gas Sensor Response (PPM)",]
+        self.graph_variable_names = [["Flow Rate (SLPM)", "Heat Release Rate (kW)"],"Flow Rate (SLPM)", "Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)", "Pressure (psi)","Gas Sensor Response (PPM)",]
 
         # Variables to report for the Live values screen
         # Each element cooresponds to a column of values
@@ -182,6 +182,7 @@ class UI_Object(tk.Tk):
             if name == self.graph_names[0]:
                 ax.legend([], loc="upper right", fontsize=6, frameon=False)
                 self.graphs[name] = {"ax": ax, "line": None, "lines": []}
+                ax.set_ylabel(self.graph_variable_names[i][0])
                 continue
 
             # MFC graphs: two lines (setpoint, actual)
@@ -488,36 +489,38 @@ class UI_Object(tk.Tk):
         gas_sensors = [[s[0]] + s[3:5] for s in sensors if len(s) > 3]
 
         # Test Plan Preview
-        if self.mfc_graphs[0] in self.graphs:
+        if not self.dh.running == True:
+
             ax = self.graphs[self.mfc_graphs[0]]["ax"]
             ax.clear()
             if not self.test_columns or not self.test_plan or len(self.test_plan) < 2:
                 ax.text(0.5, 0.5, "No Test Plan Loaded", color="gray",
                         ha="center", va="center", transform=ax.transAxes)
             else:
-                time_data = self.test_plan[0]
-                n_cols = len(self.test_columns)
-                for i, col_name in enumerate(self.test_columns[1:], start=1):
-                    if i == 6:
-                        continue
-                    y_data = self.test_plan[i]
+                time_data = [row[0] for row in self.test_plan]
+
+                # Plot Gas SLPM columns (indices 1-6 in test_plan, columns 0-5 in test_columns)
+                for i in range(1, 6):
+                    col_name = self.test_columns[i - 1]
+                    y_data = [row[i] for row in self.test_plan]
                     ax.plot(time_data, y_data, label=col_name)
-                ax.set_ylim([0, 1])
+
+                ax.autoscale_view()
                 ax.set_title(self.graph_names[0])
                 ax.set_xlabel(self.test_columns[0])
                 ax.set_ylabel(self.graph_variable_names[0][0])
 
-                if n_cols > 6:
-                    ax2 = ax.twinx()
-                    y_data_secondary = self.test_plan[6]
-                    ax2.plot(time_data, y_data_secondary, color="orange", label=self.test_columns[6])
-                    ax2.set_ylabel(self.graph_variable_names[0][1])
-                    lines1, labels1 = ax.get_legend_handles_labels()
-                    lines2, labels2 = ax2.get_legend_handles_labels()
-                    ax2.legend(lines1 + lines2, labels1 + labels2,
-                            loc="upper right", fontsize=6, frameon=False)
-                else:
-                    ax.legend(loc="upper right", fontsize=6, frameon=False)
+                # Plot HRR on secondary axis (index 7 in test_plan, index 6 in test_columns)
+                ax2 = ax.twinx()
+                y_data_secondary = [row[7] for row in self.test_plan]
+                ax2.plot(time_data, y_data_secondary, color="orange", label=self.test_columns[5])
+                ax2.set_ylabel(self.graph_variable_names[0][1])
+
+                lines1, labels1 = ax.get_legend_handles_labels()
+                lines2, labels2 = ax2.get_legend_handles_labels()
+                
+                ax2.legend(lines1 + lines2, labels1 + labels2,
+                        loc="upper right", fontsize=6, frameon=False)
 
         # MFC Graphs (each has two lines)
         for i, name in enumerate(self.mfc_graphs[1:], start=0):  # skip test plan
@@ -645,62 +648,72 @@ class UI_Object(tk.Tk):
             return None, None
 
         # Load the Excel file
-        df = pd.read_excel(file_path)
+        data = pd.read_excel(file_path, header=None).to_numpy()
 
-        ## Check test file validity
-        # ---- 1. Check column titles ----
-        if not all(title in self.valid_titles for title in df.columns):
-            self.write_to_terminal("Error: One or more column titles are invalid. "
-                f"Expected only these: {self.valid_titles}")
-            return df.columns.tolist(), [[0] * len(df.columns)]
-        # ---- 2. Check for empty cells ----
-        if df.isnull().values.any():
-            self.write_to_terminal("Error: The file contains empty cells. "
-                "Please fill or remove missing data before loading.")
-            return df.columns.tolist(), [[0] * len(df.columns)]
-        # ---- 3. Ensure numeric data in main columns (excluding first column) ----
-        for col in df.columns[1:]:
-            if not pd.to_numeric(df[col], errors='coerce').notna().all():
-                self.write_to_terminal(f"Error: Non-numeric values found in data column '{col}'.")
-                return df.columns.tolist(), [[0] * len(df.columns)]
-        # ---- 4. Check that time values are numeric ----
-        time = pd.to_numeric(df.iloc[:, 0], errors='coerce')
-        if not time.notna().all():
-            self.write_to_terminal("Error: Time column contains non-numeric or missing values.")
-            return df.columns.tolist(), [[0] * len(df.columns)]
-        # ---- 5. Check that time values are strictly increasing ----
-        if not all(np.diff(time) > 0):
-            self.write_to_terminal("Error: Time values are not strictly increasing.")
-            return df.columns.tolist(), [[0] * len(df.columns)]
-        # ---- 6. Check that time values do not exceed 3600 seconds ----
-        if time.max() > 3600:
-            self.write_to_terminal(f"Error: Time values exceed 3600 seconds (found max={time.max():.2f}).")
-            return df.columns.tolist(), [[0] * len(df.columns)]
+        t = [row[0] for row in data[4:]] # Time in seconds
+        HRR = [row[7] for row in data[4:]] # Heat release rate in kW
+
+        # Heat of combustion for all inputted gasses in kj/kg
+        Gas_1_Heat_Comb = data[2][1]
+        Gas_2_Heat_Comb = data[2][2]
+        Gas_3_Heat_Comb = data[2][3]
+        Gas_4_Heat_Comb = data[2][4]
+        Gas_5_Heat_Comb = data[2][5]
+        Gas_6_Heat_Comb = data[2][6]
+
+        # Fuel density for all inputted gasses at STP in g/L 
+        Gas_1_density = data[3][1]
+        Gas_2_density = data[3][2]
+        Gas_3_density = data[3][3]
+        Gas_4_density = data[3][4]
+        Gas_5_density = data[3][5]
+        Gas_6_density = data[3][6]
+
+        Gas_1_percent = [row[1] for row in data[4:]]
+        Gas_2_percent = [row[2] for row in data[4:]]
+        Gas_3_percent = [row[3] for row in data[4:]]
+        Gas_4_percent = [row[4] for row in data[4:]]
+        Gas_5_percent = [row[5] for row in data[4:]]
+        Gas_6_percent = [row[6] for row in data[4:]]
+
+        Gas_1_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_1_percent, [Gas_1_Heat_Comb] * len(Gas_1_percent), [Gas_1_density] * len(Gas_1_percent)))]
+        Gas_2_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_2_percent, [Gas_2_Heat_Comb] * len(Gas_2_percent), [Gas_2_density] * len(Gas_2_percent)))]
+        Gas_3_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_3_percent, [Gas_3_Heat_Comb] * len(Gas_3_percent), [Gas_3_density] * len(Gas_3_percent)))]
+        Gas_4_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_4_percent, [Gas_4_Heat_Comb] * len(Gas_4_percent), [Gas_4_density] * len(Gas_4_percent)))]
+        Gas_5_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_5_percent, [Gas_5_Heat_Comb] * len(Gas_5_percent), [Gas_5_density] * len(Gas_5_percent)))]
+        Gas_6_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_6_percent, [Gas_6_Heat_Comb] * len(Gas_6_percent), [Gas_6_density] * len(Gas_6_percent)))]
 
 
-        # Extract column titles
-        column_titles = df.columns.tolist()
-        # Ensure first column is numeric time data
-        time = pd.to_numeric(df.iloc[:, 0], errors='coerce').dropna().to_numpy()
-        start_t, end_t = time[0], time[-1]
-        # Generate new time vector with desired resolution
-        new_time = np.arange(start_t, end_t + resolution, resolution)
+        # convert to graphable format according to standard in rest of code
+        self.test_plan = [] # [[Time1, Val1.1, Val2.1, ...], [Time2, Val1.2, Val2.2,...], ...]
+        for i in range(len(t)):
+            self.test_plan.append([t[i], Gas_1_SLPM[i], Gas_2_SLPM[i], Gas_3_SLPM[i], Gas_4_SLPM[i], Gas_5_SLPM[i], Gas_6_SLPM[i], HRR[i]])
 
-        # Interpolate remaining columns
-        interpolated_data = [new_time.tolist()]  # first column is time
-        for col in df.columns[1:]:
-            y = pd.to_numeric(df[col], errors='coerce').to_numpy()
-            valid = ~np.isnan(y)
-            interp_y = np.interp(new_time, time[valid], y[valid])
-            interpolated_data.append(interp_y.tolist())
+        # Interpolate the plan for smooth execution
+        if len(self.test_plan) >= 2:
+            interpolated = []
+            for i in range(len(self.test_plan) - 1):
+                t0, t1 = self.test_plan[i][0], self.test_plan[i + 1][0]
+                vals0, vals1 = self.test_plan[i][1:], self.test_plan[i + 1][1:]
 
-        # Replace original first column title with the same
-        self.write_to_terminal(f"Interpolated data from {start_t:.2f}s to {end_t:.2f}s at {resolution:.1f}s resolution.")
-        self.write_to_terminal(f"Columns: {', '.join(column_titles)}")
-        self.test_columns = column_titles
-        self.test_plan = interpolated_data
+                t = t0
+                while t < t1:
+                    alpha = (t - t0) / (t1 - t0)
+                    interp_vals = [v0 + alpha * (v1 - v0) for v0, v1 in zip(vals0, vals1)]
+                    interpolated.append([t] + interp_vals)
+                    t += resolution
+
+            interpolated.append(self.test_plan[-1][:])
+            self.test_plan[:] = interpolated
+
+
+
+        self.test_columns = [data[0][1], data[0][2], data[0][3], data[0][4], data[0][5], data[0][6]]
 
         self.update_graphs()
+
+
+
 
     def print_variables(self):
         self.write_to_terminal(f"Test Columns: {self.test_columns}")

@@ -100,8 +100,8 @@ class ControlSystem:
 
         # Grab interpolated schedule
         plan = self.UI.test_plan
-        t_vec = plan[0]          # time axis
-        data_cols = plan[1:]    # signals
+        t_vec = [row[0] for row in plan]   # time axis
+        data_cols = [row[1:] for row in plan]    # signals
         if len(t_vec) == 0:
             self.UI.write_to_terminal("ERROR: Empty test plan")
             return
