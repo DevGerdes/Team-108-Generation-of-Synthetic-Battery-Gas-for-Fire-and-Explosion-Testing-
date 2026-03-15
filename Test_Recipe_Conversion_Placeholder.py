@@ -9,7 +9,8 @@ def load_and_interpolate_excel(resolution=0.1):
     file_path = os.getcwd() + R"\Example_Test_Recipe.xlsx"
     print(file_path)
     # Load the Excel file
-    data = pd.read_excel(file_path)
+    data = pd.read_excel("Example_Test_Recipe.xlsx", header=None).to_numpy()
+    df = pd.read_excel(file_path)
 
     ## Check test file validity
     # ---- 1. Check column titles ----
