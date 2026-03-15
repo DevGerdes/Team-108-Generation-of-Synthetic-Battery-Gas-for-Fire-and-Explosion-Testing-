@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 
 def load_and_interpolate_excel(resolution=0.1):  
-    global test_columns,test_plan
+    global test_columns,test_plan, data
     # Open file dialog
     file_path = os.getcwd() + R"\Example_Test_Recipe.xlsx"
     print(file_path)
@@ -66,95 +66,122 @@ def load_and_interpolate_excel(resolution=0.1):
 #     test_plan = interpolated_data
 
 
-# def plot_test_data(title, y1_title):
-#     global test_columns, test_plan
-#     if not test_columns or not test_plan:
-#         print("No data to plot.")
-#         return
+def plot_test_data(title, y1_title):
+    global test_columns, test_plan
+    if not test_columns or not test_plan:
+        print("No data to plot.")
+        return
     
-#     # Convert list of lists to columns
+    # Convert list of lists to columns
     
-#     fig, ax1 = plt.subplots() 
+    fig, ax1 = plt.subplots() 
     
-#     if not test_columns or not test_plan or len(test_plan) < 2:
-#         ax1.text(0.5, 0.5, "No Test Plan Loaded", color="gray",
-#                 ha="center", va="center", transform=ax1.transax1es)
-#     else:
-#         time_data = test_plan[0]
-#         n_cols = len(test_columns)
-#         for i, col_name in enumerate(test_columns[1:], start=1):
-#             if i == 6:
-#                 continue
-#             y_data = test_plan[i]
-#             ax1.plot(time_data, y_data, label=col_name)
-#         ax1.set_ylim([0, 1])
-#         ax1.set_title(title)
-#         ax1.set_xlabel(test_columns[0])
-#         ax1.set_ylabel(y1_title)
+    if not test_columns or not test_plan or len(test_plan) < 2:
+        ax1.text(0.5, 0.5, "No Test Plan Loaded", color="gray",
+                ha="center", va="center", transform=ax1.transax1es)
+    else:
+        time_data = test_plan[0]
+        n_cols = len(test_columns)
+        for i, col_name in enumerate(test_columns[1:], start=1):
+            if i == 6:
+                continue
+            y_data = test_plan[i]
+            ax1.plot(time_data, y_data, label=col_name)
+        ax1.set_ylim([0, 1])
+        ax1.set_title(title)
+        ax1.set_xlabel(test_columns[0])
+        ax1.set_ylabel(y1_title)
 
-#         if n_cols > 6:
-#             ax12 = ax1.twinx()
-#             y_data_secondary = test_plan[6]
-#             ax12.plot(time_data, y_data_secondary, color="orange", label=test_columns[6])
-#             ax12.set_ylabel("Heat Release Rate")
-#             lines1, labels1 = ax1.get_legend_handles_labels()
-#             lines2, labels2 = ax12.get_legend_handles_labels()
-#             ax12.legend(lines1 + lines2, labels1 + labels2,
-#                     loc="upper right", fontsize=6, frameon=False)
-#         else:
-#             ax1.legend(loc="upper right", fontsize=6, frameon=False)
+        if n_cols > 6:
+            ax12 = ax1.twinx()
+            y_data_secondary = test_plan[6]
+            ax12.plot(time_data, y_data_secondary, color="orange", label=test_columns[6])
+            ax12.set_ylabel("Heat Release Rate")
+            lines1, labels1 = ax1.get_legend_handles_labels()
+            lines2, labels2 = ax12.get_legend_handles_labels()
+            ax12.legend(lines1 + lines2, labels1 + labels2,
+                    loc="upper right", fontsize=6, frameon=False)
+        else:
+            ax1.legend(loc="upper right", fontsize=6, frameon=False)
     
-#     plt.show()
-
-t = data[3:, 0]
-HRR = data[3:, 7]
-
-# Heat of combustion for all inputted gasses in kj/kg
-Gas_1_Heat_Comb = data[1, 1]
-Gas_2_Heat_Comb = data[1, 2]
-Gas_3_Heat_Comb = data[1, 3]
-Gas_4_Heat_Comb = data[1, 4]
-Gas_5_Heat_Comb = data[1, 5]
-Gas_6_Heat_Comb = data[1, 6]
-
-# Fuel density for all inputted gasses at STP in g/L 
-Gas_1_density = data[2, 1]
-Gas_2_density = data[2, 2]
-Gas_3_density = data[2, 3]
-Gas_4_density = data[2, 4]
-Gas_5_density = data[2, 5]
-Gas_6_density = data[2, 6]
-
-Gas_1_percent = data[3:, 1]
-Gas_2_percent = data[3:, 2]
-Gas_3_percent = data[3:, 3]
-Gas_4_percent = data[3:, 4]
-Gas_5_percent = data[3:, 5]
-Gas_6_percent = data[3:, 6]
-
-Gas_1_SLPM = Gas_1_percent * (HRR / Gas_1_Heat_Comb) * 6000 / Gas_1_density
-Gas_2_SLPM = Gas_2_percent * (HRR / Gas_2_Heat_Comb) * 6000 / Gas_2_density
-Gas_3_SLPM = Gas_3_percent * (HRR / Gas_3_Heat_Comb) * 6000 / Gas_3_density
-Gas_4_SLPM = Gas_4_percent * (HRR / Gas_4_Heat_Comb) * 6000 / Gas_4_density
-Gas_5_SLPM = Gas_5_percent * (HRR / Gas_5_Heat_Comb) * 6000 / Gas_5_density
-Gas_6_SLPM = Gas_6_percent * (HRR / Gas_6_Heat_Comb) * 6000 / Gas_6_density
+    plt.show()
 
 
 def convert_testplan_to_MFC_flows():
-    global test_plan,test_columns
+    global test_plan,test_columns, data
     load_and_interpolate_excel() # load in and populate test_columns and test_plan variables
     plot_test_data("User Graph","Percent of Composition") # What the user will see
     ############## YOUR CODE HERE
     
-    # May want to convert test_plan to columns rather than current format
-    # data = list(zip(*test_plan)) # [time, var1, var2, var3, ...]
-    # time = data[0]
-    t=1
-    
+    print(data)
+    # data[row][column]
+    # t = data[3:, 0]
+    # HRR = data[3:, 7]
+    t = [row[0] for row in data[4:]] # Time in seconds
+    HRR = [row[7] for row in data[4:]] # Heat release rate in kW
+
+    # Heat of combustion for all inputted gasses in kj/kg
+    # Gas_1_Heat_Comb = data[1, 1]
+    # Gas_2_Heat_Comb = data[1, 2]
+    # Gas_3_Heat_Comb = data[1, 3]
+    # Gas_4_Heat_Comb = data[1, 4]
+    # Gas_5_Heat_Comb = data[1, 5]
+    # Gas_6_Heat_Comb = data[1, 6]
+    Gas_1_Heat_Comb = data[2][1]
+    Gas_2_Heat_Comb = data[2][2]
+    Gas_3_Heat_Comb = data[2][3]
+    Gas_4_Heat_Comb = data[2][4]
+    Gas_5_Heat_Comb = data[2][5]
+    Gas_6_Heat_Comb = data[2][6]
+
+    # Fuel density for all inputted gasses at STP in g/L 
+    Gas_1_density = data[3][1]
+    Gas_2_density = data[3][2]
+    Gas_3_density = data[3][3]
+    Gas_4_density = data[3][4]
+    Gas_5_density = data[3][5]
+    Gas_6_density = data[3][6]
+
+    # Gas_1_percent = data[3:, 1]
+    # Gas_2_percent = data[3:, 2]
+    # Gas_3_percent = data[3:, 3]
+    # Gas_4_percent = data[3:, 4]
+    # Gas_5_percent = data[3:, 5]
+    # Gas_6_percent = data[3:, 6]
+    Gas_1_percent = [row[1] for row in data[4:]]
+    Gas_2_percent = [row[2] for row in data[4:]]
+    Gas_3_percent = [row[3] for row in data[4:]]
+    Gas_4_percent = [row[4] for row in data[4:]]
+    Gas_5_percent = [row[5] for row in data[4:]]
+    Gas_6_percent = [row[6] for row in data[4:]]
+
+    # Gas_1_SLPM = Gas_1_percent * (HRR / Gas_1_Heat_Comb) * 6000 / Gas_1_density
+    # Gas_2_SLPM = Gas_2_percent * (HRR / Gas_2_Heat_Comb) * 6000 / Gas_2_density
+    # Gas_3_SLPM = Gas_3_percent * (HRR / Gas_3_Heat_Comb) * 6000 / Gas_3_density
+    # Gas_4_SLPM = Gas_4_percent * (HRR / Gas_4_Heat_Comb) * 6000 / Gas_4_density
+    # Gas_5_SLPM = Gas_5_percent * (HRR / Gas_5_Heat_Comb) * 6000 / Gas_5_density
+    # Gas_6_SLPM = Gas_6_percent * (HRR / Gas_6_Heat_Comb) * 6000 / Gas_6_density
+    Gas_1_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_1_percent, [Gas_1_Heat_Comb] * len(Gas_1_percent), [Gas_1_density] * len(Gas_1_percent)))]
+    Gas_2_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_2_percent, [Gas_2_Heat_Comb] * len(Gas_2_percent), [Gas_2_density] * len(Gas_2_percent)))]
+    Gas_3_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_3_percent, [Gas_3_Heat_Comb] * len(Gas_3_percent), [Gas_3_density] * len(Gas_3_percent)))]
+    Gas_4_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_4_percent, [Gas_4_Heat_Comb] * len(Gas_4_percent), [Gas_4_density] * len(Gas_4_percent)))]
+    Gas_5_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_5_percent, [Gas_5_Heat_Comb] * len(Gas_5_percent), [Gas_5_density] * len(Gas_5_percent)))]
+    Gas_6_SLPM = [0 if heat_comb == 0 else percent * (HRR[i] / heat_comb) * 60000 / density for i, (percent, heat_comb, density) in enumerate(zip(Gas_6_percent, [Gas_6_Heat_Comb] * len(Gas_6_percent), [Gas_6_density] * len(Gas_6_percent)))]
 
 
-    test_plan = []
-    y1_title = "Mass Flow Rate" # For example. Whatever you want the mfc to do.
+    print(Gas_1_SLPM)
+    print(Gas_2_SLPM)
+    print(Gas_3_SLPM)
+    print(Gas_4_SLPM)
+    print(Gas_5_SLPM)
+    print(Gas_6_SLPM)
+
+    # convert to graphable format according to standard in rest of code
+    test_plan = [] # [[Time1, Val1.1, Val2.1, ...], [Time2, Val1.2, Val2.2,...], ...]
+    for i in range(len(t)):
+        test_plan.append([t[i], Gas_1_SLPM[i], Gas_2_SLPM[i], Gas_3_SLPM[i], Gas_4_SLPM[i], Gas_5_SLPM[i], Gas_6_SLPM[i]])
+
+    y1_title = "Flow Rate (SLPM)" # For example. Whatever you want the mfc to do.
     ##############
     plot_test_data("Converted Recipe",y1_title) # Plot the values the MFC's will see
     print(test_columns)
@@ -164,6 +191,7 @@ def convert_testplan_to_MFC_flows():
 
 
 valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4"]
+data = []
 test_columns = [] # [Title1,Title2,Title3,...]
 test_plan = [] # [[Time1, Val1.1, Val2.1, ...], [Time2, Val1.2, Val2.2,...], ...]
 convert_testplan_to_MFC_flows()
