@@ -19,10 +19,10 @@ class Data_Handler:
         """
 
         # data saving parameters 
-        # mfc_history = [ [time1,[mfc1_response,mfc2_response,...,Valve_State]] , [time2,[mfc1_response,mfc2_response,...,Valve_State]] , ...]
+        # mfc_history = [ [time1,mfc1_response,mfc2_response,..] , [time2,mfc1_response,mfc2_response,...] , ...]
         self.setpoint_history = []
         self.response_history = [] 
-        self.sensor_history = [] # [[time, Mixing Chamber Pressure, Line Pressure, Gas Sensor 1, Gas Sensor 2,...],...]
+        self.sensor_history = [] # [[time, Mixing Chamber Pressure, Line Pressure, Gas Sensor 1, Gas Sensor 2, Temp Sensor],...]
         self.valve_history = [] # [[time, valve_state],...]
 
         # Arduino Serial Communication Parameters
@@ -102,26 +102,6 @@ class Data_Handler:
         return None
 
 
-    def send_data(self,new_setpoints):
-        """Send the list of data values to Arduino."""
-        if self.Arduino_connected == False: # check if arduino connected
-            self.UI.write_to_terminal("[Data_Handler] Cannot send data, Arduino not connected.")
-            return
-
-        try:
-            # new_setpoints = [State (3 = custom setpoints), Valve, MFC1, MFC2, MFC3, MFC4, MFC5]
-            # Convert list to string for sending
-            # Example: "1.0,0,23.4\n"
-            out_string = self.delimiter.join(map(str, new_setpoints)) + "\n"
-            self.serial.write(out_string.encode("utf-8")) # Send the data
-            self.setpoint_history.append([time.time(), new_setpoints[2],new_setpoints[3],new_setpoints[4],new_setpoints[5],new_setpoints[6]]) # Save mfc setpoints
-
-        except Exception as e:
-            self.UI.write_to_terminal(f"Error sending data: {e}")
-
-
-        self.read_data() # Immediately read response after sending setpoints
-
     def read_data(self):
         """Read and parse incoming data from Arduino with seq heartbeat check."""
         # if not self.serial or not self.serial.in_waiting:
@@ -132,13 +112,13 @@ class Data_Handler:
             line = self.serial.readline().decode("utf-8", errors="ignore").strip()
             # Should recieve:
             # Seq, State, Valve state, MFC1 Response, MFC2 Response, MFC3 Response,
-            #  MFC4 Response, MFC5 Response, Mixing Chamber Pressure, Pipe Pressure, Gas Sensor 1, Gas Sensor 2
+            #  MFC4 Response, MFC5 Response, Mixing Chamber Pressure, Pipe Pressure, Gas Sensor 1, Gas Sensor 2, Temp Sensor
             if not line:
                 self.UI.write_to_terminal("Received empty line from Arduino.")
                 return
 
             parts = line.split(",")
-            if len(parts) != 12: # Should recieve the number of elements as descirbed above
+            if len(parts) != 13: # Should recieve the number of elements as descirbed above
                 self.UI.write_to_terminal(f"Malformed data packet: {line}")
                 return  # hard drop malformed packets
 
@@ -161,7 +141,7 @@ class Data_Handler:
             # parse values and store histories
             self.response_history.append([t, float(parts[3]),float(parts[4]),float(parts[5]),float(parts[6]),float(parts[7])]) # Save mfc responses
             self.valve_history.append([t, int(parts[2])])
-            self.sensor_history.append([t, float(parts[8]),float(parts[9]),float(parts[10]),float(parts[11])]) #[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2]
+            self.sensor_history.append([t, float(parts[8]),float(parts[9]),float(parts[10]),float(parts[11]),float(parts[12])]) #[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2, Temp Sensor]
 
         except Exception as e:
             self.UI.write_to_terminal(f"[Data_Handler] Error reading arduino data: {e}")
@@ -170,9 +150,6 @@ class Data_Handler:
 
     def update_setpoints(self, new_setpoints):
         """Update the data_out list with new setpoints."""
-        if self.running == False: # check if arduino connected or sim running
-            self.UI.write_to_terminal("[Data_Handler] Cannot update setpoints, communication/simulation not running.")
-            return
         
         # if self.do_sim: # Running a simulation
         #     if len(new_setpoints) != len(self.sim_mfcs): # check for data compatability
@@ -185,10 +162,26 @@ class Data_Handler:
         #     # save mfc response current value
         #     self.mfc_response_history.append([time.time(),[self.sim_mfcs[i].get_value() for i in range(len(self.sim_mfcs))]])
 
-        if self.Arduino_connected: # Running Arduino communication
-            self.send_data(new_setpoints)
-        else:
-            self.UI.write_to_terminal("[Data_Handler] Unknown operation mode.")
+        if self.Arduino_connected == False: # check if arduino connected
+            self.UI.write_to_terminal("[Data_Handler] Cannot send data, Arduino not connected.")
+            return
+
+        try:
+            # new_setpoints = [State (3 = custom setpoints), Valve, MFC1, MFC2, MFC3, MFC4, MFC5]
+            # Convert list to string for sending
+            # Example: "1.0,0,23.4\n"
+            out_string = self.delimiter.join(map(str, new_setpoints)) + "\n"
+            self.serial.write(out_string.encode("utf-8")) # Send the data
+            self.setpoint_history.append([time.time(), new_setpoints[2],new_setpoints[3],new_setpoints[4],new_setpoints[5],new_setpoints[6]]) # Save mfc setpoints
+
+            self.read_data() # Immediately read response after sending setpoints
+
+
+        except Exception as e:
+            self.UI.write_to_terminal(f"Error sending data: {e}")
+
+
+        
 
     # ### # Define similair functions for simulation instead of arduino communication
     # def start_sim(self,number_of_mfcs=5):
@@ -247,7 +240,7 @@ class Data_Handler:
         ]
         
 
-        # self.sensor_history = [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,...],...]
+        # self.sensor_history = [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,Temp Sensor,...],...]
 
         emergency_tests = (
             MFC_setpoint_tests
@@ -283,5 +276,6 @@ class Data_Handler:
             else:
                 self.UI.write_to_terminal(f"Unknown test type '{test[1]}' for {test[0]}")
         if violations != []:
-            self.UI.write_to_terminal(f"Warning: {', '.join(violations)}")
-            self.cs.set_state(0) # Set state to emergency stop
+            joined = ',\n'.join(violations)
+            self.UI.write_to_terminal(f"Warning: {joined}")
+            # self.cs.set_state(0) # Set state to emergency stop

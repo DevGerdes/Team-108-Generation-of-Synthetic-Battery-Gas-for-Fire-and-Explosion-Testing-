@@ -36,7 +36,7 @@ class UI_Object(tk.Tk):
         # Define names for main displays and buttons
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
-        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints","Save Data","Ambient Calibration"]
+        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints","Save Data","Clear Data","Ambient Calibration"]
         self.indicators = ["State","Valve","Arduino"]
 
         # Define graph names and variable names for overview display
@@ -49,8 +49,8 @@ class UI_Object(tk.Tk):
         # Each element cooresponds to a column of values
         self.report_variables = [["MFC 1 Setpoint: ", "MFC 2 Setpoint: ", "MFC 3 Setpoint: ", "MFC 4 Setpoint: ", "MFC 5 Setpoint: "],
             ["MFC 1 Response: ","MFC 2 Response: ","MFC 3 Response: ","MFC 4 Response: ","MFC 5 Response: "],                  
-            ["Pressure Sensor 1: ","Pressure Sensor 2: ", "Pressure Sensor 3: "],
-            ["Gas Sensor 1: ","Gas Sensor 2: "],]
+            ["Pressure Sensor 1: ","Pressure Sensor 2: "],
+            ["Gas Sensor 1: ","Gas Sensor 2: ","Line Temperature: "]]
 
         # Variables for loading in test data
         self.valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4","NA"]
@@ -243,12 +243,12 @@ class UI_Object(tk.Tk):
                 lbl_name = tk.Label(container, text=var,
                                     fg=self.styles["text"], bg=self.styles["bg"],
                                     font=("Segoe UI", 11, "bold"), anchor="e", width=18)
-                lbl_name.grid(row=r, column=c*2, padx=(10,2), pady=4, sticky="e")
+                lbl_name.grid(row=r, column=c*2, padx=(1,1), pady=4, sticky="e")
 
                 lbl_val = tk.Label(container, text="—",
                                    fg=self.styles["muted"], bg=self.styles["bg"],
                                    font=("Segoe UI", 11), anchor="w", width=10)
-                lbl_val.grid(row=r, column=c*2 + 1, padx=(2,10), pady=4, sticky="w")
+                lbl_val.grid(row=r, column=c*2 + 1, padx=(1,1), pady=4, sticky="w")
 
                 self.value_labels[var] = lbl_val
 
@@ -403,7 +403,15 @@ class UI_Object(tk.Tk):
         if name == self.function_buttons[7]:  # Save Data button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.save_histories_to_excel()
-        if name == self.function_buttons[8]:  # Ambient Calibration button
+        if name == self.function_buttons[8]:  # Clear Data button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.dh.setpoint_history = [[0,0,0,0,0]]
+            self.dh.response_history = [[0,0,0,0,0]]
+            self.dh.sensor_history = [[0,0,0,0,0,0]]
+            self.dh.valve_history = [[0,0]]
+            self.update_graphs()
+            self.write_to_terminal("[INFO] All data histories cleared.")
+        if name == self.function_buttons[9]:  # Ambient Calibration button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.cs.set_state(4) # Set state to AMBIENT CALIBRATION
 
@@ -463,7 +471,7 @@ class UI_Object(tk.Tk):
 
     def update_graphs(self):
         """Update all graphs using stored data (no inputs)."""
-        now = self.dh.run_start
+        now = time.time()
         window = 60*5  # 5 minutes [seconds]
 
         # [t, ...] entries exsisting within window
@@ -476,8 +484,8 @@ class UI_Object(tk.Tk):
         sensors  = recent(self.dh.sensor_history)
 
         # split sensors into pressure and gas sensor lists
-        pressure_sensors = [[s[0]] + s[1:3] for s in sensors if len(s) >= 3]
-        gas_sensors = [[s[0]] + s[3:] for s in sensors if len(s) > 3]
+        pressure_sensors = [[s[0]] + s[1:3] for s in sensors if len(s) > 3] # [[time, pressure1, pressure2],...]
+        gas_sensors = [[s[0]] + s[3:5] for s in sensors if len(s) > 3]
 
         # Test Plan Preview
         if self.mfc_graphs[0] in self.graphs:
@@ -520,15 +528,16 @@ class UI_Object(tk.Tk):
             lines = graph["lines"]
 
             # Verify data presence
-            if not setpoints or not responses: # If no data, continue
+            # if not setpoints or not responses: # If no data, continue
+                # setpoints = [[0,0,0,0,0]]  # Dummy data to prevent errors
+                # responses = [[0,0,0,0,0]]
                 # ax.clear()
                 # ax.set_title(name)
                 # ax.text(0.5, 0.5, "No MFC Data", color="gray",
                 #         ha="center", va="center", transform=ax.transAxes)
-                continue
+                # continue
 
             try:
-                # Extract data for this MFC index
                 # Extract data for this MFC index
                 times_sp = [row[0]-now for row in setpoints]
                 sp_vals  = [row[i+1] for row in setpoints]
@@ -544,7 +553,7 @@ class UI_Object(tk.Tk):
 
         # Sensor Graphs
         if pressure_sensors:
-            times = [t-now for t, *_ in pressure_sensors]
+            times = [row[0]-now for row in pressure_sensors]
             name = self.sensor_graphs[0] # Pressure Sensors
             graph = self.graphs[name]
             ax = graph["ax"]
@@ -560,7 +569,7 @@ class UI_Object(tk.Tk):
                     
         # Gas sensor Graphs
         if gas_sensors:
-            times = [t-now for t, *_ in gas_sensors]
+            times = [row[0]-now for row in gas_sensors]
             name = self.sensor_graphs[1] # Gas Sensors
             graph = self.graphs[name]
             ax = graph["ax"]
@@ -599,10 +608,11 @@ class UI_Object(tk.Tk):
         "MFC 3 Response: ": lambda: self.dh.response_history[-1][3],
         "MFC 4 Response: ": lambda: self.dh.response_history[-1][4],
         "MFC 5 Response: ": lambda: self.dh.response_history[-1][5],                  
-        "Pressure Sensor 1: ": lambda: self.sensor_history[-1][1],
-        "Pressure Sensor 2: ": lambda: self.sensor_history[-1][2],
-        "Gas Sensor 1: ": lambda: self.sensor_history[-1][3],
-        "Gas Sensor 2: ": lambda: self.sensor_history[-1][4],
+        "Pressure Sensor 1: ": lambda: self.dh.sensor_history[-1][1],
+        "Pressure Sensor 2: ": lambda: self.dh.sensor_history[-1][2],
+        "Gas Sensor 1: ": lambda: self.dh.sensor_history[-1][3],
+        "Gas Sensor 2: ": lambda: self.dh.sensor_history[-1][4],
+        "Line Temperature: ": lambda: self.dh.sensor_history[-1][5],
         }
 
         for var, lbl in self.value_labels.items():
@@ -615,8 +625,9 @@ class UI_Object(tk.Tk):
             if callable(val):
                 try:
                     val = val()
-                except Exception:
+                except Exception as e:
                     val = "—"
+                    print(f"[ERROR] Getting value for {var} in live values: {e}")
 
             lbl.config(text=f"{val}")
 
@@ -718,7 +729,7 @@ class UI_Object(tk.Tk):
 
         n_mfc_set = 5
         n_mfc_resp = 5
-        n_sensors = 4 
+        n_sensors = 5 
 
         data = {"Time": time}
 
@@ -728,7 +739,7 @@ class UI_Object(tk.Tk):
         for i in range(n_mfc_resp):
             data[f"MFC {i+1} response"] = [row[i+1] for row in self.dh.response_history]
 
-        sensor_names = ["Pressure 1", "Pressure 2", "Gas 1", "Gas 2"]
+        sensor_names = ["MC Pressure", "Line Pressure", "Gas 1", "Gas 2","Line Temperature"]
         for i in range(n_sensors):
             name = sensor_names[i] if i < len(sensor_names) else f"Sensor {i+1}"
             data[name] = [row[i+1] for row in self.dh.sensor_history]

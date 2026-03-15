@@ -139,6 +139,7 @@ class ControlSystem:
             self.dh.check_emergency_conditions()
             if self.STATE != 3:
                 break
+            self.dh.update_setpoints(setpoints)
             self.UI.update_graphs() # Update graphs at each loop iteration
             self.UI.update_values_display()
             time.sleep(self.resolution)
@@ -147,7 +148,7 @@ class ControlSystem:
         self.UI.write_to_terminal("[CONTROLS: AMBIENT CALIBRATION] Starting ambient calibration procedure...")
         self.dh.update_setpoints([1,0,0,0,0,0,0]) # Open valve and set no flow to all MFCs
         calibration_start = time.time()
-        calibration_duration = 5 # seconds to run calibration for
+        calibration_duration = 30 # seconds to run calibration for
         while self.STATE == 4:
             if self.STATE != 4:
                 break
