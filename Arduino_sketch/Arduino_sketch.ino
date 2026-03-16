@@ -38,7 +38,7 @@ const uint8_t VALVE_SET_PIN = 2; // Digital pin 2 (D2)
 // Sensor analog response pins
 const uint8_t MixingChamberPressure_PIN = A10;
 const uint8_t PipePressure_PIN = A6;
-const uint8_t GasSensor1_PIN = A12;
+const uint8_t GasSensor1_PIN = A8;
 const uint8_t GasSensor2_PIN = A13;
 const uint8_t TempSensor_PIN = A11;
 
@@ -70,8 +70,8 @@ void setup()
 
     // Begin Comminication with DAC, defualt to 0 flow
     DAC_begin();
-    DAC_writeVoltage(MFC1, 0.0);
-    DAC_writeVoltage(MFC2, 0.0);
+    DAC_writeVoltage(MFC1, LOW);
+    DAC_writeVoltage(MFC2, LOW);
     DAC_writeVoltage(MFC3, 0.0);
     DAC_writeVoltage(MFC4, 0.0);
     DAC_writeVoltage(MFC5, 0.0);
@@ -231,12 +231,13 @@ float mfcSlpmToVoltage(float slpm)
 {
     if (slpm < 0)   slpm = 0;
     if (slpm > 500) slpm = 500;
+    if (slpm < .1)  slpm = 0;
     return (slpm / 500.0f) * 5.0f;  // returns 0.0–5.0f
 }
 
 void applySetpoints()
 {
-    // Fix #1: use _store variables, not the #define channel indices
+
     DAC_writeVoltage(MFC1, mfcSlpmToVoltage(MFC1_store));
     DAC_writeVoltage(MFC2, mfcSlpmToVoltage(MFC2_store));
     DAC_writeVoltage(MFC3, mfcSlpmToVoltage(MFC3_store));
