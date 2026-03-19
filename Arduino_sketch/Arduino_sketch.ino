@@ -24,6 +24,7 @@ float PipePressure = 0;
 float GasSensor1 = 0;
 float GasSensor2 = 0;
 float TempSensor = 0;
+int E_Stop = 1; // 1 = power on, no emergency || 0 = power off, emergency
 
 // ----- Pin Assignments -----
 // MFC Setpoints assigned in DAC connection
@@ -34,13 +35,15 @@ const uint8_t MFC3_READ_PIN = A7;
 const uint8_t MFC4_READ_PIN = A8;
 const uint8_t MFC5_READ_PIN = A9;
 // Valve set pin
-const uint8_t VALVE_SET_PIN = 2; // Digital pin 2 (D2)
+const uint8_t VALVE_SET_PIN = 6; // Digital pin 6 (D6)
 // Sensor analog response pins
-const uint8_t MixingChamberPressure_PIN = A10;
-const uint8_t PipePressure_PIN = A6;
+const uint8_t MixingChamberPressure_PIN = A6;
+const uint8_t PipePressure_PIN = A7;
 const uint8_t GasSensor1_PIN = A8;
-const uint8_t GasSensor2_PIN = A13;
+const uint8_t GasSensor2_PIN = A9;
 const uint8_t TempSensor_PIN = A11;
+// E-stop pin
+const uint8_t E_STOP_READ = 2; // Digital 2
 
 
 #define OUTBUF_SIZE 256 // Max charecter length for serial out. Makes things truncate safely for sending if too long, and can be increased if needed (shouldnt need to)
@@ -277,8 +280,9 @@ void sendLine()
     dtostrf(MixingChamberPressure, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
     dtostrf(PipePressure, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
     dtostrf(GasSensor1, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
-    dtostrf(GasSensor2, 0, 3, tmp); strcat(outBuffer, tmp);strcat(outBuffer, ",");
-    dtostrf(TempSensor, 0, 3, tmp); strcat(outBuffer, tmp);
+    dtostrf(GasSensor2, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
+    dtostrf(TempSensor, 0, 3, tmp); strcat(outBuffer, tmp); strcat(outBuffer, ",");
+    itoa(E_Stop, tmp, 10); strcat(outBuffer, tmp);
 
     strcat(outBuffer, "\n");
 
@@ -328,6 +332,7 @@ void readSensors()
     GasSensor1 = adcToUnits(analogRead(GasSensor1_PIN),0,5,1); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
     GasSensor2 = adcToUnits(analogRead(GasSensor2_PIN),0,5,1); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
     TempSensor = adcToThermocouple(analogRead(TempSensor_PIN)); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
+    E_Stop = digitalRead(E_STOP_READ);
 }
 
 

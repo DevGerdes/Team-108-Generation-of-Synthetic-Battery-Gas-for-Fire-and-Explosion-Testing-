@@ -76,6 +76,7 @@ class ControlSystem:
             self.running = False
             if self.thread:
                 self.thread.join(timeout=1)
+            self.set_state(1)
             self.UI.write_to_terminal("[ControlSystem] Stopped main loop.")
 
     def set_state(self, new_state):
@@ -160,16 +161,16 @@ class ControlSystem:
                 #time.sleep(self.resolution)
             else:
                 # process and store averages for each sensor value, then return to idle
-                # self.dh.sensor_history = [[time, Mixing Chamber Pressure, Line Pressure, Gas Sensor 1, Gas Sensor 2,...],...]
+                # self.dh.sensor_history = [[time, Mixing Chamber Pressure, Line Pressure, Methane, Gas Sensor 2,...],...]
                 mixing_chamber_pressure_avg = np.mean([entry[1] for entry in self.dh.sensor_history])
                 line_pressure_avg = np.mean([entry[2] for entry in self.dh.sensor_history])
                 gas_sensor_1_avg = np.mean([entry[3] for entry in self.dh.sensor_history])
                 gas_sensor_2_avg = np.mean([entry[4] for entry in self.dh.sensor_history])
 
 
-                self.UI.state_saver("store", "mixing_chamber_pressure", mixing_chamber_pressure_avg)
-                self.UI.state_saver("store", "line_pressure", line_pressure_avg)
-                self.UI.state_saver("store", "gas_sensor_1", gas_sensor_1_avg)
-                self.UI.state_saver("store", "gas_sensor_2", gas_sensor_2_avg)
+                self.dh.state_saver("store", "mixing_chamber_pressure", mixing_chamber_pressure_avg)
+                self.dh.state_saver("store", "line_pressure", line_pressure_avg)
+                self.dh.state_saver("store", "Methane_Sensor", gas_sensor_1_avg)
+                self.dh.state_saver("store", "gas_sensor_2", gas_sensor_2_avg)
 
                 break

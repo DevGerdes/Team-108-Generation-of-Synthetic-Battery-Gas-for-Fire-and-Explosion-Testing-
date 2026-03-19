@@ -4,6 +4,8 @@ import time
 import threading
 import time
 import gc
+import os
+import csv
 
 from MFC_Sim_Object import MFC_Simulator
 
@@ -45,6 +47,9 @@ class Data_Handler:
         # Initialize connection to other objects
         self.UI = None  # Placeholder for UI object
         self.cs = None  # Placeholder for Control System object
+
+        # Ambient conditions values from state save
+        self.methane_ambient = self.state_saver("load", "Methane_Sensor",None)
 
     def connect_to_arduino(self):
         """Establish serial connection to Arduino."""
@@ -101,6 +106,44 @@ class Data_Handler:
         self.UI.write_to_terminal("No Arduino detected on available ports.")
         return None
 
+    def state_saver(self,action, var_name, value):
+        FILE_PATH = "state_save.csv"
+
+        # Ensure file exists
+        if not os.path.exists(FILE_PATH):
+            if action == "load":
+                raise FileNotFoundError(f"Data file not found at {FILE_PATH}")
+            open(FILE_PATH, "w").close()
+
+        data = {}
+
+        # Read existing data
+        with open(FILE_PATH, mode="r", newline="") as file:
+            reader = csv.reader(file)
+            for row in reader:
+                if len(row) == 2:
+                    data[row[0]] = row[1]
+
+        if action == "store":
+            if value is None:
+                raise ValueError("Store operation requires a value.")
+            data[var_name] = str(value)
+
+            # Rewrite entire file
+            with open(FILE_PATH, mode="w", newline="") as file:
+                writer = csv.writer(file)
+                for key, val in data.items():
+                    writer.writerow([key, val])
+
+            return True
+
+        elif action == "load":
+            if var_name not in data:
+                raise KeyError(f"Variable '{var_name}' not found in data store.")
+            return float(data[var_name])
+
+        else:
+            raise ValueError("Action must be 'store' or 'load'.")
 
     def read_data(self):
         """Read and parse incoming data from Arduino with seq heartbeat check."""
@@ -118,7 +161,7 @@ class Data_Handler:
                 return
 
             parts = line.split(",")
-            if len(parts) != 13: # Should recieve the number of elements as descirbed above
+            if len(parts) != 14: # Should recieve the number of elements as descirbed above
                 self.UI.write_to_terminal(f"Malformed data packet: {line}")
                 return  # hard drop malformed packets
 
@@ -141,7 +184,7 @@ class Data_Handler:
             # parse values and store histories
             self.response_history.append([t, float(parts[3]),float(parts[4]),float(parts[5]),float(parts[6]),float(parts[7])]) # Save mfc responses
             self.valve_history.append([t, int(parts[2])])
-            self.sensor_history.append([t, float(parts[8]),float(parts[9]),float(parts[10]),float(parts[11]),float(parts[12])]) #[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2, Temp Sensor]
+            self.sensor_history.append([t, float(parts[8]),float(parts[9]),float(parts[10]),float(parts[11]),float(parts[12]),int(parts[13])]) #[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2, Temp Sensor, Estop]
 
         except Exception as e:
             self.UI.write_to_terminal(f"[Data_Handler] Error reading arduino data: {e}")
@@ -212,47 +255,52 @@ class Data_Handler:
         MFC_setpoint_tests = [
             [f"MFC {i} Setpoint",
              "All",
-               self.setpoint_history[-1][i], 0, 0, 9, 10]
+               self.setpoint_history[-1][i], 0, 0, 450, 500]
             for i in range(1,len(self.setpoint_history[-1]))
         ]
 
-        MFC_response_tests = [
-            [
-                f"MFC {i} Response",
-                "All",
-                self.response_history[-1][i],
-                0, 0,
-                1.1 * self.setpoint_history[-1][i], # Warning at over 110% of setpoint, max at 120%
-                1.2 * self.setpoint_history[-1][i],
+        if not len(self.response_history) == 0:
+            MFC_response_tests = [
+                [
+                    f"MFC {i} Response",
+                    "All",
+                    self.response_history[-1][i],
+                    0, 0,
+                    1.1 * self.setpoint_history[-1][i], # Warning at over 110% of setpoint, max at 120%
+                    1.2 * self.setpoint_history[-1][i],
+                ]
+                for i in range(1,len(self.response_history[-1]))
             ]
-            for i in range(1,len(self.response_history[-1]))
-        ]
-    
-        # Warning at over 10% error, max at 20%
-        MFC_response_Error_delta_tests = [
-            [
-                f"MFC {i+1} Response Error Delta",
-                "All",
-                abs(self.response_history[-1][i]- self.setpoint_history[-1][i]) / max(self.setpoint_history[-1][i], 1e-9),
-                0, 0, 0.1, 0.2,
+        
+            # Warning at over 10% error, max at 20%
+            MFC_response_Error_delta_tests = [
+                [
+                    f"MFC {i+1} Response Error Delta",
+                    "All",
+                    abs(self.response_history[-1][i]- self.setpoint_history[-1][i]) / max(self.setpoint_history[-1][i], 1e-9),
+                    0, 0, 0.1, 0.2,
+                ]
+                for i in range(1,len(self.setpoint_history[-1]))
             ]
-            for i in range(len(self.setpoint_history[-1]))
-        ]
+        else:
+            MFC_response_tests = []
+            MFC_response_Error_delta_tests = []
         
 
-        # self.sensor_history = [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,Temp Sensor,...],...]
-
+        # self.sensor_history = [[time, pressure1, sensor2, Gas Sensor 1, Gas Sensor 2,Temp Sensor, Estop,...],...]
         emergency_tests = (
             MFC_setpoint_tests
             + MFC_response_tests
             + MFC_response_Error_delta_tests
             + [
-                ["Mixing Chamber Pressure", "All", self.sensor_history[-1][1], 0, 0, 135, 150],
-                ["Line Pressure", "All", self.sensor_history[-1][2], 0, 0, 40, 50],
-                ["Gas Sensor 1", "All", self.sensor_history[-1][3], 0, 0, 40, 50],
-                ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
-                ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]],
+                [] if self.sensor_history == [] else ["Mixing Chamber Pressure", "All", self.sensor_history[-1][1], 0, 0, 23, 25],
+                [] if self.sensor_history == [] else ["Line Pressure", "All", self.sensor_history[-1][2], 0, 0, 23, 25],
+                [] if self.sensor_history == [] else ["Methane Sensor Absolute", "All", self.sensor_history[-1][3], 0, 0, .4, .6],
+                [] if self.sensor_history == [] else ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
+                [] if self.valve_history == [] else ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]],
                 ["Arduino Connected", "Binary", self.Arduino_connected, 0, 0, 1, 1],
+                [] if self.sensor_history == [] else ["Methane Sensor Relative to Ambient", "All", self.sensor_history[-1][3], 0, 0, self.methane_ambient * 1.1, self.methane_ambient * 1.2],
+                [] if self.sensor_history == [] else ["E-Stop", "Binary", self.sensor_history[-1][6], 0, 0, 1, 1] # 1 = not engaged, 0 = engaged, emergency
             ]
         )
 
@@ -260,6 +308,8 @@ class Data_Handler:
         # Cylce through each test and check for violations
         violations = []
         for test in emergency_tests:
+            if test == []:
+                continue
             if test[1] == "All":
                 if test[2] < test[3]: # if the value is below min
                     violations.append(f"{test[0]} below minimum")
