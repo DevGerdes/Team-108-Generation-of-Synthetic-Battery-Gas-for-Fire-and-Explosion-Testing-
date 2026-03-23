@@ -36,20 +36,21 @@ class UI_Object(tk.Tk):
         # Define names for main displays and buttons
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
-        self.function_buttons = ["START TEST", "STOP TEST","TEST RECIPE LOAD", "REPORT VALUES", "EMERGENCY STOP", "Connect","Send Setpoints","Save Data","Clear Data","Ambient Calibration"]
+        self.function_buttons = ["EMERGENCY STOP", "START TEST", "STOP TEST","TEST RECIPE LOAD", "Send Setpoints", "REPORT VALUES", "Ambient Calibration","Connect","Save Data","Clear Data"]
+        self.button_colors = ["#098930", "#828006","#ed7c04", "#16181c", "#eb4034", "#16181c","#ed7c04","#16181c","#16181c","#257661"]
         self.indicators = ["State","Valve","Arduino"]
 
         # Define graph names and variable names for overview display
-        self.mfc_graphs = ["Test Plan Preview", "MFC 1 Response", "MFC 2 Response","MFC 3 Response","MFC 4 Response","MFC 5 Response",]
+        self.mfc_graphs = ["Test Plan Preview", "MFC 1 Response", "MFC 2 Response","MFC 3 Response","MFC 4 Response","MFC 5 Response"]
         self.sensor_graphs = ["Pressure Sensors","Gas Sensors"]
         self.graph_names = self.mfc_graphs+self.sensor_graphs
-        self.graph_variable_names = [["Flow Rate (SLPM)", "Heat Release Rate (kW)"],"Flow Rate (SLPM)", "Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)", "Pressure (psi)","Gas Sensor Response (PPM)",]
+        self.graph_variable_names = [["Flow Rate (SLPM)", "Heat Release Rate (kW)"],"Flow Rate (SLPM)", "Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)","Flow Rate (SLPM)", "Pressure (psi)","Gas Sensor Response (PPM)"]
 
         # Variables to report for the Live values screen
         # Each element cooresponds to a column of values
         self.report_variables = [["MFC 1 Setpoint: ", "MFC 2 Setpoint: ", "MFC 3 Setpoint: ", "MFC 4 Setpoint: ", "MFC 5 Setpoint: "],
             ["MFC 1 Response: ","MFC 2 Response: ","MFC 3 Response: ","MFC 4 Response: ","MFC 5 Response: "],                  
-            ["Pressure Sensor 1: ","Pressure Sensor 2: "],
+            ["Mixing Chamber Pressure: ","Line Pressure: "],
             ["Gas Sensor 1: ","Gas Sensor 2: ","Line Temperature: "]]
 
         # Variables for loading in test data
@@ -304,14 +305,14 @@ class UI_Object(tk.Tk):
         self.terminal.pack(fill="both", expand=True, padx=8, pady=(0,8))
     
     def _build_bottom_buttons(self):
-            # Create bottom buttons
-            for n in self.function_buttons:
-                b = tk.Button(self.bottom_frame, text=n,
-                            command=lambda name=n: self.on_bottom_press(name),
-                            bg=self.styles["button_bg"], fg=self.styles["text"],
-                            activebackground=self.styles["button_active"],
-                            relief="flat", padx=12, pady=8)
-                b.pack(side="left", padx=8, pady=8)
+        # Create bottom buttons
+        for i, n in enumerate(self.function_buttons):
+            b = tk.Button(self.bottom_frame, text=n,
+                        command=lambda name=n: self.on_bottom_press(name),
+                        bg=self.button_colors[i], fg=self.styles["text"],
+                        activebackground=self.styles["button_active"],
+                        relief="flat", padx=12, pady=8)
+            b.pack(side="left", padx=8, pady=8)
 
     #######################
     ## Begin function handling for UI actions
@@ -324,7 +325,10 @@ class UI_Object(tk.Tk):
 
     def on_bottom_press(self, name):
         # Handle bottom button presses and call or perform appropriate actions
-        if name == self.function_buttons[0]: # Start button
+        if name == self.function_buttons[0]: # EMERGENCY STOP button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.cs.set_state(0) # Set state to EMERGENCY STOP
+        if name == self.function_buttons[1]: # Start button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             try:
                 if self.test_plan == []:
@@ -334,26 +338,17 @@ class UI_Object(tk.Tk):
                 self.write_to_terminal("[INFO] Test started.")
             except Exception as e:
                 self.write_to_terminal(f"[ERROR] Could not start test: {e}")
-        if name == self.function_buttons[1]: # Stop button
+        if name == self.function_buttons[2]: # Stop button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             try:
                 self.cs.set_state(1) # Set state to IDLE
                 self.write_to_terminal("[INFO] Test stopped.")
             except Exception as e:
                 self.write_to_terminal(f"[ERROR] Could not stop test: {e}")
-        if name == self.function_buttons[2]: # TEST RECIPE LOAD button
+        if name == self.function_buttons[3]: # TEST RECIPE LOAD button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.load_and_interpolate_excel()
-        if name == self.function_buttons[3]: # REPORT VARIABLES button"
-            self.write_to_terminal(f"[ACTION] {name} pressed")
-            self.print_variables()
-        if name == self.function_buttons[4]: # EMERGENCY STOP button
-            self.write_to_terminal(f"[ACTION] {name} pressed")
-            self.cs.set_state(0) # Set state to EMERGENCY STOP
-        if name == self.function_buttons[5]: # Connect button
-            self.write_to_terminal(f"[ACTION] {name} pressed")
-            self.dh.connect_to_arduino()
-        if name == self.function_buttons[6]:  # Send Setpoints button
+        if name == self.function_buttons[4]:  # Send Setpoints button
             self.write_to_terminal(f"[ACTION] {name} pressed")
 
             popup = tk.Toplevel(self)
@@ -401,11 +396,22 @@ class UI_Object(tk.Tk):
             tk.Button(popup, text="Enter", command=submit).grid(
                 row=7, column=0, columnspan=2, pady=10
             )
-
-        if name == self.function_buttons[7]:  # Save Data button
+        if name == self.function_buttons[5]: # REPORT VARIABLES button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.print_variables()
+        if name == self.function_buttons[6]:  # Ambient Calibration button
+            if self.dh.arduino_connected:
+                self.write_to_terminal(f"[ACTION] {name} pressed")
+                self.cs.set_state(4) # Set state to AMBIENT CALIBRATION
+            else:
+                self.write_to_terminal(f"[ERROR] Cannot start ambient calibration: Arduino not connected.")
+        if name == self.function_buttons[7]: # Connect button
+            self.write_to_terminal(f"[ACTION] {name} pressed")
+            self.dh.connect_to_arduino()
+        if name == self.function_buttons[8]:  # Save Data button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.save_histories_to_excel()
-        if name == self.function_buttons[8]:  # Clear Data button
+        if name == self.function_buttons[9]:  # Clear Data button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.dh.setpoint_history = [[0,0,0,0,0]]
             self.dh.response_history = [[0,0,0,0,0]]
@@ -413,9 +419,6 @@ class UI_Object(tk.Tk):
             self.dh.valve_history = [[0,0]]
             self.update_graphs()
             self.write_to_terminal("[INFO] All data histories cleared.")
-        if name == self.function_buttons[9]:  # Ambient Calibration button
-            self.write_to_terminal(f"[ACTION] {name} pressed")
-            self.cs.set_state(4) # Set state to AMBIENT CALIBRATION
 
 
     
@@ -524,7 +527,7 @@ class UI_Object(tk.Tk):
                         loc="upper right", fontsize=6, frameon=False)
 
         # MFC Graphs (each has two lines)
-        for i, name in enumerate(self.mfc_graphs[1:], start=0):  # skip test plan
+        for i, name in enumerate(self.mfc_graphs[1:self.dh.num_mfcs+1], start=0):  # skip test plan and only loop through MFC's in use
             if name not in self.graphs:
                 continue
             graph = self.graphs[name]
@@ -612,11 +615,11 @@ class UI_Object(tk.Tk):
         "MFC 3 Response: ": lambda: self.dh.response_history[-1][3],
         "MFC 4 Response: ": lambda: self.dh.response_history[-1][4],
         "MFC 5 Response: ": lambda: self.dh.response_history[-1][5],                  
-        "Pressure Sensor 1: ": lambda: self.dh.sensor_history[-1][1],
-        "Pressure Sensor 2: ": lambda: self.dh.sensor_history[-1][2],
+        "Mixing Chamber Pressure: ": lambda: self.dh.sensor_history[-1][1],
+        "Line Pressure: ": lambda: self.dh.sensor_history[-1][2],
         "Gas Sensor 1: ": lambda: self.dh.sensor_history[-1][3],
         "Gas Sensor 2: ": lambda: self.dh.sensor_history[-1][4],
-        "Line Temperature: ": lambda: self.dh.sensor_history[-1][5],
+        "Line Temperature: ": lambda: self.dh.sensor_history[-1][5]
         }
 
         for var, lbl in self.value_labels.items():

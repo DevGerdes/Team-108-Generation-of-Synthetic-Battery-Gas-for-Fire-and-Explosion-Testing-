@@ -48,8 +48,9 @@ class Data_Handler:
         self.UI = None  # Placeholder for UI object
         self.cs = None  # Placeholder for Control System object
 
-        # Ambient conditions values from state save
-        self.methane_ambient = self.state_saver("load", "Methane_Sensor",None)
+        # Load in values from state save
+        self.methane_ambient = self.state_saver("load", "Methane_Sensor",None) # for ambient conditions testing
+        self.num_mfcs = int(self.state_saver("load", "num_mfcs",None)) # to limit emergency conditions checks
 
     def connect_to_arduino(self):
         if not self.Arduino_connected:
@@ -259,7 +260,7 @@ class Data_Handler:
             [f"MFC {i} Setpoint",
              "All",
                self.setpoint_history[-1][i], 0, 0, 450, 500]
-            for i in range(1,len(self.setpoint_history[-1]))
+            for i in range(1,min(len(self.setpoint_history[-1]),self.num_mfcs))
         ]
 
         if not len(self.response_history) == 0 or len(self.setpoint_history) == 0:
@@ -272,7 +273,7 @@ class Data_Handler:
                     1.1 * self.setpoint_history[-1][i], # Warning at over 110% of setpoint, max at 120%
                     1.2 * self.setpoint_history[-1][i],
                 ]
-                for i in range(1,len(self.response_history[-1]))
+                for i in range(1,min(len(self.setpoint_history[-1]),self.num_mfcs))
             ]
         
             # Warning at over 10% error, max at 20%
@@ -283,7 +284,7 @@ class Data_Handler:
                     abs(self.response_history[-1][i]- self.setpoint_history[-1][i]) / max(self.setpoint_history[-1][i], 1e-9),
                     0, 0, 0.1, 0.2,
                 ]
-                for i in range(1,len(self.setpoint_history[-1]))
+                for i in range(1,min(len(self.setpoint_history[-1]),self.num_mfcs))
             ]
         else:
             MFC_response_tests = []

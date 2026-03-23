@@ -36,6 +36,7 @@ if __name__ == "__main__":
 
     # Start the UI main loop
     Gas_Mixing_UI.write_to_terminal("App started.")
+    Gas_Mixing_UI.write_to_terminal("Number of MFCs: " + str(dh.num_mfcs) + "\n MAKE SURE THIS IS CORRECT")
 
 
     # Start the Control System main loop
