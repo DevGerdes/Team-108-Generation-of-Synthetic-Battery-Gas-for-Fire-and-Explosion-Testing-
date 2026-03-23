@@ -94,7 +94,8 @@ class UI_Object(tk.Tk):
         try:
             if self.cs is not None:
                 # Optionally stop threads, close connections, etc.
-                self.cs.set_state(0) # Set to emergency conditions to shutdown system if UI closed
+                self.cs.emergency_stop() 
+                time.sleep(0.5) # Give some time for threads to stop and resources to release
         except Exception:
             pass
         self.destroy()

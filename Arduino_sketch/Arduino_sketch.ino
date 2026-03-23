@@ -30,17 +30,17 @@ int E_Stop = 1; // 1 = power on, no emergency || 0 = power off, emergency
 // MFC Setpoints assigned in DAC connection
 // MFC Response inputs
 const uint8_t MFC1_READ_PIN = A5;
-const uint8_t MFC2_READ_PIN = A6;
-const uint8_t MFC3_READ_PIN = A7;
-const uint8_t MFC4_READ_PIN = A8;
-const uint8_t MFC5_READ_PIN = A9;
+const uint8_t MFC2_READ_PIN = A4;
+const uint8_t MFC3_READ_PIN = A3;
+const uint8_t MFC4_READ_PIN = A2;
+const uint8_t MFC5_READ_PIN = A1;
 // Valve set pin
-const uint8_t VALVE_SET_PIN = 6; // Digital pin 6 (D6)
+const uint8_t VALVE_SET_PIN = 47; // Digital pin 
 // Sensor analog response pins
-const uint8_t MixingChamberPressure_PIN = A6;
-const uint8_t PipePressure_PIN = A7;
-const uint8_t GasSensor1_PIN = A8;
-const uint8_t GasSensor2_PIN = A9;
+const uint8_t MixingChamberPressure_PIN = A14;
+const uint8_t PipePressure_PIN = A6;
+const uint8_t GasSensor1_PIN = A9; // Mixing chamber pressure, 150 PSI
+const uint8_t GasSensor2_PIN = A8; // Line pressure, 50 PSI
 const uint8_t TempSensor_PIN = A11;
 // E-stop pin
 const uint8_t E_STOP_READ = 2; // Digital 2
@@ -247,7 +247,7 @@ void applySetpoints()
     DAC_writeVoltage(MFC4, mfcSlpmToVoltage(MFC4_store));
     DAC_writeVoltage(MFC5, mfcSlpmToVoltage(MFC5_store));
 
-    digitalWrite(VALVE_SET_PIN, VALVE ? HIGH : LOW);
+    digitalWrite(VALVE_SET_PIN, VALVE);
 }
 
 
@@ -296,7 +296,7 @@ float adcToSlpm(uint16_t adc) // Convert MFC read analog value to SLPM value
     if (adc > 1023) adc = 1023;
     return (adc / 1023.0f) * 500.0f;
 }
-float adcToUnits(uint16_t adc, float vMin, float vMax, float fullScale)
+float adcToUnits(uint16_t adc, float vMin, float vMax, float fullScale, float offset = 0.0f)
 {
     const float vRef = 5.0f;
     const float vPerCount = vRef / 1023.0f;
@@ -304,8 +304,9 @@ float adcToUnits(uint16_t adc, float vMin, float vMax, float fullScale)
     float voltage = adc * vPerCount;
     voltage = constrain(voltage, vMin, vMax);
 
-    return ((voltage - vMin) / (vMax - vMin)) * fullScale;
+    return (((voltage - vMin) / (vMax - vMin)) * fullScale) + offset;
 }
+
 float adcToThermocouple(uint16_t adc)
 {
     const float vRef       = 5.0f;
@@ -327,8 +328,8 @@ void readMfcResponses()
 }
 void readSensors()
 {
-    MixingChamberPressure = adcToUnits(analogRead(MixingChamberPressure_PIN),0,5,150); // 150 psi full range
-    PipePressure = adcToUnits(analogRead(PipePressure_PIN),0.5,4.5,50); // 50 psi full range
+    MixingChamberPressure = adcToUnits(analogRead(MixingChamberPressure_PIN),.5,4.5,150, 14.7); // 150 psi full range
+    PipePressure = adcToUnits(analogRead(PipePressure_PIN),0.5,4.5,50,14.7); // 50 psi full range
     GasSensor1 = adcToUnits(analogRead(GasSensor1_PIN),0,5,1); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
     GasSensor2 = adcToUnits(analogRead(GasSensor2_PIN),0,5,1); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)
     TempSensor = adcToThermocouple(analogRead(TempSensor_PIN)); // UNKOWN FULL RANGE (REQUIRES CALIBRATION)

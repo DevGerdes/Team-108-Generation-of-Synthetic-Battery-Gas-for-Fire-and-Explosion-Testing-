@@ -52,21 +52,24 @@ class Data_Handler:
         self.methane_ambient = self.state_saver("load", "Methane_Sensor",None)
 
     def connect_to_arduino(self):
-        """Establish serial connection to Arduino."""
-        self.UI.write_to_terminal("Attempting to connect to Arduino...")
-        self.port = self.find_arduino_port()
-        try:
-            if self.port == None:
-                self.UI.write_to_terminal("No Arduino found. Cannot connect.")
-                return
-            self.serial = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
-            time.sleep(2)  # allow Arduino to reset
-            self.UI.write_to_terminal(f"Connected to Arduino on {self.port}")
-            self.Arduino_connected = True
-        except serial.SerialException as e:
-            self.UI.write_to_terminal(f"Error connecting to Arduino: {e}")
-            self.serial = None
-        self.UI.update_indicators(name=self.UI.indicators[2])
+        if not self.Arduino_connected:
+            """Establish serial connection to Arduino."""
+            self.UI.write_to_terminal("Attempting to connect to Arduino...")
+            self.port = self.find_arduino_port()
+            try:
+                if self.port == None:
+                    self.UI.write_to_terminal("No Arduino found. Cannot connect.")
+                    return
+                self.serial = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
+                time.sleep(2)  # allow Arduino to reset
+                self.UI.write_to_terminal(f"Connected to Arduino on {self.port}")
+                self.Arduino_connected = True
+            except serial.SerialException as e:
+                self.UI.write_to_terminal(f"Error connecting to Arduino: {e}")
+                self.serial = None
+            self.UI.update_indicators(name=self.UI.indicators[2])
+        else:
+            self.UI.write_to_terminal("Already connected to Arduino.")
 
     def find_arduino_port(self):
         """
@@ -259,7 +262,7 @@ class Data_Handler:
             for i in range(1,len(self.setpoint_history[-1]))
         ]
 
-        if not len(self.response_history) == 0:
+        if not len(self.response_history) == 0 or len(self.setpoint_history) == 0:
             MFC_response_tests = [
                 [
                     f"MFC {i} Response",
@@ -328,4 +331,4 @@ class Data_Handler:
         if violations != []:
             joined = ',\n'.join(violations)
             self.UI.write_to_terminal(f"Warning: {joined}")
-            # self.cs.set_state(0) # Set state to emergency stop
+            #self.cs.set_state(0) # Set state to emergency stop

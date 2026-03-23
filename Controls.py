@@ -47,7 +47,7 @@ class ControlSystem:
                     # Custom setpoints should be sent immediately when state changes, so just maintain them here
                     self.dh.run_start = time.time()
                     self.dh.running = True
-                    self.run_custom(self.custom_setpoints)
+                    self.run_custom()
                 elif self.STATE == 4: # Ambient Calibration
                     self.dh.run_start = time.time()
                     self.dh.running = True
@@ -133,14 +133,14 @@ class ControlSystem:
         
         self.set_state(1) # Return to idle when done
 
-    def run_custom(self, setpoints):
-        self.UI.write_to_terminal(f"[CONTROLS: RUNNING CUSTOM SETPOINTS]: {setpoints}")
-        self.dh.update_setpoints(setpoints)
+    def run_custom(self):
+        self.UI.write_to_terminal(f"[CONTROLS: RUNNING CUSTOM SETPOINTS]: {self.custom_setpoints}")
+        self.dh.update_setpoints(self.custom_setpoints)
         while self.STATE == 3:
             self.dh.check_emergency_conditions()
             if self.STATE != 3:
                 break
-            self.dh.update_setpoints(setpoints)
+            self.dh.update_setpoints(self.custom_setpoints)
             self.UI.update_graphs() # Update graphs at each loop iteration
             self.UI.update_values_display()
             time.sleep(self.resolution)
