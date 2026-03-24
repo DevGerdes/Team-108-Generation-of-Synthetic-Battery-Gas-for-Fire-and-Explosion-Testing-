@@ -300,7 +300,7 @@ class Data_Handler:
                 [] if self.sensor_history == [] else ["Mixing Chamber Pressure", "All", self.sensor_history[-1][1], 0, 0, 23, 25],
                 [] if self.sensor_history == [] else ["Line Pressure", "All", self.sensor_history[-1][2], 0, 0, 23, 25],
                 [] if self.sensor_history == [] else ["Methane Sensor Absolute", "All", self.sensor_history[-1][3], 0, 0, .4, .6],
-                [] if self.sensor_history == [] else ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
+                #[] if self.sensor_history == [] else ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
                 [] if self.valve_history == [] else ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]],
                 ["Arduino Connected", "Binary", self.Arduino_connected, 0, 0, 1, 1],
                 [] if self.sensor_history == [] else ["Methane Sensor Relative to Ambient", "All", self.sensor_history[-1][3], 0, 0, self.methane_ambient * 1.1, self.methane_ambient * 1.2],
