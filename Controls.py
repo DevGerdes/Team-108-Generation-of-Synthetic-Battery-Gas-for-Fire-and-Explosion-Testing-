@@ -34,7 +34,6 @@ class ControlSystem:
             if not self.STATE == self.oldstate: # If state has changed
                 self.oldstate = self.STATE
                 if self.STATE == 0: # Emergency Stop
-                    self.dh.running = False
                     self.emergency_stop()
                 elif self.STATE == 1: # Idle
                     self.dh.running = False
@@ -88,8 +87,12 @@ class ControlSystem:
     ######### State specific logic
 
     def emergency_stop(self):
-        self.dh.update_setpoints([0,0,0,0,0,0,0]) # Send zero flow to all MFC's and close valve
         self.UI.write_to_terminal("[STATE: EMERGENCY STOP] System or user detected emergency conditions...")
+        while self.STATE == 0:
+            if self.STATE != 0:
+                break
+            self.dh.update_setpoints([0,0,0,0,0,0,0]) # Send zero flow to all MFC's and close valve
+            time.sleep(self.resolution)
 
     def idle(self):
         self.dh.update_setpoints([1,0,0,0,0,0,0]) # Send zero flow to all MFC's and close valve
