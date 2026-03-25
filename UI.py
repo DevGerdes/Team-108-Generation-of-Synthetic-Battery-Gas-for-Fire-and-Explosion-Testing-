@@ -37,7 +37,7 @@ class UI_Object(tk.Tk):
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
         self.function_buttons = ["EMERGENCY STOP", "START TEST", "STOP TEST","TEST RECIPE LOAD", "Send Setpoints", "REPORT VALUES", "Ambient Calibration","Connect","Save Data","Clear Data"]
-        self.button_colors = ["#098930", "#828006","#ed7c04", "#16181c", "#eb4034", "#16181c","#ed7c04","#16181c","#16181c","#257661"]
+        self.button_colors = ["#eb4034", "#098930", "#06106C","#ed7c04", "#ed7c04", "#16181c","#16181c","#5C707E","#257661","#257661"]
         self.indicators = ["State","Valve","Arduino"]
 
         # Define graph names and variable names for overview display
@@ -400,7 +400,7 @@ class UI_Object(tk.Tk):
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.print_variables()
         if name == self.function_buttons[6]:  # Ambient Calibration button
-            if self.dh.arduino_connected:
+            if self.dh.Arduino_connected:
                 self.write_to_terminal(f"[ACTION] {name} pressed")
                 self.cs.set_state(4) # Set state to AMBIENT CALIBRATION
             else:

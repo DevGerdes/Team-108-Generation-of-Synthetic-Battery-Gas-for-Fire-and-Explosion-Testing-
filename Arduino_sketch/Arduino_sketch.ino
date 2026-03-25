@@ -29,19 +29,19 @@ int E_Stop = 1; // 1 = power on, no emergency || 0 = power off, emergency
 // ----- Pin Assignments -----
 // MFC Setpoints assigned in DAC connection
 // MFC Response inputs
-const uint8_t MFC1_READ_PIN = A5;
-const uint8_t MFC2_READ_PIN = A4;
+const uint8_t MFC1_READ_PIN = A3;
+const uint8_t MFC2_READ_PIN = A2;
 const uint8_t MFC3_READ_PIN = A3;
-const uint8_t MFC4_READ_PIN = A2;
-const uint8_t MFC5_READ_PIN = A1;
+const uint8_t MFC4_READ_PIN = A3;
+const uint8_t MFC5_READ_PIN = A3;
 // Valve set pin
 const uint8_t VALVE_SET_PIN = 47; // Digital pin 
 // Sensor analog response pins
-const uint8_t MixingChamberPressure_PIN = A14;
+const uint8_t MixingChamberPressure_PIN = A12;
 const uint8_t PipePressure_PIN = A6;
-const uint8_t GasSensor1_PIN = A9; // Mixing chamber pressure, 150 PSI
+const uint8_t GasSensor1_PIN = A4; // Mixing chamber pressure, 150 PSI
 const uint8_t GasSensor2_PIN = A8; // Line pressure, 50 PSI
-const uint8_t TempSensor_PIN = A11;
+const uint8_t TempSensor_PIN = A13;
 // E-stop pin
 const uint8_t E_STOP_READ = 2; // Digital 2
 

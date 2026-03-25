@@ -1,0 +1,7 @@
+Troubleshooting Information
+
+MFC Inputs:
+- Always connect MFC's in given order. Top down, left to right:
+|MFC 4|  |MFC 2|  |MFC 1|  |MFC 3|  |MFC 5|
+- Make sure state_save.csv contains the right number of mfcs
+
