@@ -1,12 +1,5 @@
-import tkinter as tk
-from tkinter import scrolledtext
-from tkinter import Tk, filedialog
 import time
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib.pyplot as plt
 import numpy as np
-import math
-import pandas as pd
 import threading
 
 
@@ -55,7 +48,7 @@ class ControlSystem:
                     self.set_state(1) # Return to idle when done
 
                 else:
-                    print(f"[STATE: UNKNOWN] No handler for self.STATE '{self.STATE}'")
+                    self.UI.write_to_terminal(f"[STATE: UNKNOWN] No handler for self.STATE '{self.STATE}'")
                     self.STATE = 0
                     self.emergency_stop()
             time.sleep(self.resolution/10)

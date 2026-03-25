@@ -4,11 +4,8 @@ from tkinter import Tk, filedialog, simpledialog
 import time
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
-import numpy as np
 import math
 import pandas as pd
-import os
-import csv
 
 class UI_Object(tk.Tk):
     ## Define all UI variables and build the layout
@@ -631,7 +628,6 @@ class UI_Object(tk.Tk):
                     val = val()
                 except Exception as e:
                     val = "—"
-                    print(f"[ERROR] Getting value for {var} in live values: {e}")
 
             lbl.config(text=f"{val}")
 

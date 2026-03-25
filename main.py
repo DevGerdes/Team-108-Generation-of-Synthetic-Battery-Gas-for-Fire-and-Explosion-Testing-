@@ -1,17 +1,19 @@
-## Main control loop
-# defines needed global variables for commnuication between proccesses
-# Calls functions for UI and serial communication with Arduino
-
-#Import all needed libraries
-import tkinter as tk
-from tkinter import scrolledtext
-from tkinter import Tk, filedialog
-import time
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib.pyplot as plt
-import numpy as np
-import math
-import pandas as pd
+### Synthetic Battery Gas Generation System for Fire and Explosion Testing
+# Jensen Hughes VT ME Senior Design Project, Fall 2025-Spring 2026
+#
+# VT Senior Design Team 108 Members:
+# Devin Gerdes - Code, Team Lead/Project Manager
+# Emma Watson - Hardware and Testing Planner, Controls Team
+# Clay Mercer - Controls Hardware, Controls Team
+# Aidan Hounshell - Safety Expert, Mechanical Design, Fabrication, Mechanical Team
+# Gerard (Gary) Resulaj - Mechanical Design and Fabrication, Mechanical Team
+# Remy Nioche - CAD and Fabrication, Mechanical Team
+#
+# Graduated Spring 2026, Virginia Tech, Mechanical Engineering
+#
+# Primarily coded by Devin Gerdes
+# Test plan conversion coded by Emma Watson
+# 
 
 
 # Import functions or objects from other files

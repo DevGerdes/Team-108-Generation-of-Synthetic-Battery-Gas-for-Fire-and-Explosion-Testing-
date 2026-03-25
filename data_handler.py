@@ -1,14 +1,10 @@
 import serial
 import serial.tools.list_ports
 import time
-import threading
 import time
-import gc
 import os
 import csv
-
-from MFC_Sim_Object import MFC_Simulator
-
+#from MFC_Sim_Object import MFC_Simulator
 
 class Data_Handler:
     """
