@@ -36,8 +36,8 @@ class UI_Object(tk.Tk):
         # Define names for main displays and buttons
         self.main_display_names = ["Overview and Control", "Live Values","TroubleShooting and Best Practices"]
         self.main_display_titles = self.main_display_names
-        self.function_buttons = ["EMERGENCY STOP", "START TEST", "STOP TEST","TEST RECIPE LOAD", "Send Setpoints", "REPORT VALUES", "Ambient Calibration","Connect","Save Data","Clear Data"]
-        self.button_colors = ["#eb4034", "#098930", "#06106C","#ed7c04", "#ed7c04", "#16181c","#16181c","#5C707E","#257661","#257661"]
+        self.function_buttons = ["EMERGENCY STOP", "START TEST", "STOP TEST","TEST RECIPE LOAD", "Send Setpoints", "Ambient Calibration","Connect","Save Data","Clear Data"]
+        self.button_colors = ["#eb4034", "#098930", "#06106C","#ed7c04", "#ed7c04","#16181c","#5C707E","#257661","#257661"]
         self.indicators = ["State","Valve","Arduino"]
 
         # Define graph names and variable names for overview display
@@ -396,22 +396,19 @@ class UI_Object(tk.Tk):
             tk.Button(popup, text="Enter", command=submit).grid(
                 row=7, column=0, columnspan=2, pady=10
             )
-        if name == self.function_buttons[5]: # REPORT VARIABLES button
-            self.write_to_terminal(f"[ACTION] {name} pressed")
-            self.print_variables()
-        if name == self.function_buttons[6]:  # Ambient Calibration button
+        if name == self.function_buttons[5]:  # Ambient Calibration button
             if self.dh.Arduino_connected:
                 self.write_to_terminal(f"[ACTION] {name} pressed")
                 self.cs.set_state(4) # Set state to AMBIENT CALIBRATION
             else:
                 self.write_to_terminal(f"[ERROR] Cannot start ambient calibration: Arduino not connected.")
-        if name == self.function_buttons[7]: # Connect button
+        if name == self.function_buttons[6]: # Connect button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.dh.connect_to_arduino()
-        if name == self.function_buttons[8]:  # Save Data button
+        if name == self.function_buttons[7]:  # Save Data button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.save_histories_to_excel()
-        if name == self.function_buttons[9]:  # Clear Data button
+        if name == self.function_buttons[8]:  # Clear Data button
             self.write_to_terminal(f"[ACTION] {name} pressed")
             self.dh.setpoint_history = [[0,0,0,0,0]]
             self.dh.response_history = [[0,0,0,0,0]]
@@ -715,15 +712,6 @@ class UI_Object(tk.Tk):
         self.test_columns = [data[0][1], data[0][2], data[0][3], data[0][4], data[0][5], data[0][6]]
 
         self.update_graphs()
-
-
-
-
-    def print_variables(self):
-        self.write_to_terminal(f"Test Columns: {self.test_columns}")
-        self.write_to_terminal(f"Test Plan (first 5 rows):")
-        for row in self.test_plan:
-            self.write_to_terminal(f"{row}")
 
     def save_histories_to_excel(self):
 
