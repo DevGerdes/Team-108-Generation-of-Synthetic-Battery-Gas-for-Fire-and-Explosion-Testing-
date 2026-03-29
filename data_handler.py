@@ -260,6 +260,7 @@ class Data_Handler:
         ]
 
         if not len(self.response_history) == 0 or len(self.setpoint_history) == 0:
+
             MFC_response_tests = [
                 [
                     f"MFC {i} Response",
@@ -272,13 +273,13 @@ class Data_Handler:
                 for i in range(1,min(len(self.setpoint_history[-1]),self.num_mfcs))
             ]
         
-            # Warning at over 10% error, max at 20%
+            # Response delta is less than zero (Controls response to large step initially slightly oposite, have positive max)
             MFC_response_Error_delta_tests = [
                 [
                     f"MFC {i+1} Response Error Delta",
                     "All",
-                    abs(self.response_history[-1][i]- self.setpoint_history[-1][i]) / max(self.setpoint_history[-1][i], 1e-9),
-                    0, 0, 0.1, 0.2,
+                    (self.response_history[-1][i]- self.setpoint_history[-1][i])/(self.setpoint_history[-1][0]-self.setpoint_history[-2][0] if len(self.setpoint_history) > 1 else 1), # d(SLPM)/dt
+                    -100, -100, 0, 5,
                 ]
                 for i in range(1,min(len(self.setpoint_history[-1]),self.num_mfcs))
             ]
@@ -295,6 +296,7 @@ class Data_Handler:
             + [
                 [] if self.sensor_history == [] else ["Mixing Chamber Pressure", "All", self.sensor_history[-1][1], 0, 0, 23, 25],
                 [] if self.sensor_history == [] else ["Line Pressure", "All", self.sensor_history[-1][2], 0, 0, 23, 25],
+                [] if self.sensor_history == [] else ["Pressure Delta - Loss of Pressure", "All", (self.sensor_history[-1][1] - self.sensor_history[-1][2])/(self.sensor_history[-1][0] - self.sensor_history[-2][0] if len(self.sensor_history) > 1 else 1), -10, -10, 40, 50],
                 [] if self.sensor_history == [] else ["Methane Sensor Absolute", "All", self.sensor_history[-1][3], 0, 0, .4, .6],
                 #[] if self.sensor_history == [] else ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
                 [] if self.valve_history == [] else ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]],

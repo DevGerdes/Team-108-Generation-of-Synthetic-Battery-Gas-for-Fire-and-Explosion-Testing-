@@ -35,7 +35,7 @@ const uint8_t MFC3_READ_PIN = A3;
 const uint8_t MFC4_READ_PIN = A3;
 const uint8_t MFC5_READ_PIN = A3;
 // Valve set pin
-const uint8_t VALVE_SET_PIN = 47; // Digital pin 
+const uint8_t VALVE_SET_PIN = 53; // Digital pin 
 // Sensor analog response pins
 const uint8_t MixingChamberPressure_PIN = A12;
 const uint8_t PipePressure_PIN = A6;
@@ -315,7 +315,7 @@ float adcToThermocouple(uint16_t adc)
     const float offsetV    = 1.25f;    // 0°C = 1.25V
 
     float voltage = adc * vPerCount;
-    return (voltage - offsetV) / mVperDegC;
+    return (voltage - offsetV) / mVperDegC-8;
 }
 
 void readMfcResponses()

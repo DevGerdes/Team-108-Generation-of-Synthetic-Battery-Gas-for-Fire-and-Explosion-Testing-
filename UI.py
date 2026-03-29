@@ -51,7 +51,6 @@ class UI_Object(tk.Tk):
             ["Gas Sensor 1: ","Gas Sensor 2: ","Line Temperature: "]]
 
         # Variables for loading in test data
-        self.valid_titles = ["Time (s)","Heat Release Rate (kW)", "H2", "O2", "N2", "CO2", "CH4","NA"]
         self.test_columns = [] # [Title1,Title2,Title3,...]
         self.test_plan = [] # [[Time1, Val1.1, Val2.1, ...], [Time2, Val1.2, Val2.2,...], ...]
 
@@ -711,9 +710,11 @@ class UI_Object(tk.Tk):
 
     def save_histories_to_excel(self):
 
-        if self.dh.setpoint_history == [] and self.dh.response_history == [] and self.dh.sensor_history == [] and self.dh.valve_history == []:
+        if (self.dh.setpoint_history == [] and self.dh.response_history == []
+                and self.dh.sensor_history == [] and self.dh.valve_history == []):
             self.write_to_terminal("[ERROR] No data to save.")
             return
+
         root = tk.Tk()
         root.withdraw()
 
@@ -725,27 +726,116 @@ class UI_Object(tk.Tk):
         if not path:
             return
 
-        # --- extract time (assume uniform) ---
-        time = [row[0]-self.dh.run_start for row in self.dh.response_history]
+        # --- Helper: forward-fill then back-fill a column to remove NaN/None ---
+        def clean_column(col):
+            result = list(col)
+            # Forward fill
+            last_valid = None
+            for i, v in enumerate(result):
+                if v is not None and not (isinstance(v, float) and math.isnan(v)):
+                    last_valid = v
+                elif last_valid is not None:
+                    result[i] = last_valid
+            # Back fill (handles leading Nones)
+            last_valid = None
+            for i in range(len(result) - 1, -1, -1):
+                v = result[i]
+                if v is not None and not (isinstance(v, float) and math.isnan(v)):
+                    last_valid = v
+                elif last_valid is not None:
+                    result[i] = last_valid
+            return result
 
-        n_mfc_set = 5
-        n_mfc_resp = 5
-        n_sensors = 5 
+        # --- Helper: safely extract a column from a history array ---
+        def extract_col(history, col_idx, target_len, fallback=0.0):
+            col = []
+            for row in history:
+                if col_idx < len(row):
+                    col.append(row[col_idx])
+                else:
+                    col.append(None)
+            # Pad or trim to target length
+            if len(col) < target_len:
+                col.extend([None] * (target_len - len(col)))
+            else:
+                col = col[:target_len]
+            col = clean_column(col)
+            # Replace any remaining None (all-empty column) with fallback
+            return [fallback if v is None else v for v in col]
 
-        data = {"Time": time}
+        # --- Determine canonical length from the longest history ---
+        all_histories = [
+            self.dh.setpoint_history,
+            self.dh.response_history,
+            self.dh.sensor_history,
+            self.dh.valve_history,
+        ]
+        target_len = max((len(h) for h in all_histories if h), default=0)
+        if target_len == 0:
+            self.write_to_terminal("[ERROR] No data to save.")
+            return
+
+        # --- Build time axis from whichever history is longest ---
+        anchor = max(all_histories, key=lambda h: len(h) if h else 0)
+        time = [
+            (row[0] - self.dh.run_start) if row and len(row) > 0 else None
+            for row in anchor
+        ]
+        time = extract_col([[v] for v in time], 0, target_len, fallback=0.0)
+
+        n_mfc_set  = min(5, self.dh.num_mfcs)
+        n_mfc_resp = min(5, self.dh.num_mfcs)
+        n_sensors  = 5
+
+        data = {"Time (s)": time}
 
         for i in range(n_mfc_set):
-            data[f"MFC {i+1} setpoint"] = [row[i+1] for row in self.dh.setpoint_history]
+            col = extract_col(self.dh.setpoint_history, i + 1, target_len)
+            data[f"MFC {i+1} Setpoint (SLPM)"] = col
 
         for i in range(n_mfc_resp):
-            data[f"MFC {i+1} response"] = [row[i+1] for row in self.dh.response_history]
+            col = extract_col(self.dh.response_history, i + 1, target_len)
+            data[f"MFC {i+1} Response (SLPM)"] = col
 
-        sensor_names = ["MC Pressure", "Line Pressure", "Gas 1", "Gas 2","Line Temperature"]
+        sensor_names = ["MC Pressure", "Line Pressure", "Gas 1", "Gas 2", "Line Temperature"]
         for i in range(n_sensors):
             name = sensor_names[i] if i < len(sensor_names) else f"Sensor {i+1}"
-            data[name] = [row[i+1] for row in self.dh.sensor_history]
+            col = extract_col(self.dh.sensor_history, i + 1, target_len)
+            data[name] = col
 
-        data["Valve state"] = [row[1] for row in self.dh.valve_history]
+        valve_col = extract_col(self.dh.valve_history, 1, target_len, fallback=0)
+        data["Valve State"] = [int(v) for v in valve_col]
 
-        pd.DataFrame(data).to_excel(path, index=False)
+        # --- Write with light formatting via openpyxl ---
+        df = pd.DataFrame(data)
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, PatternFill, Alignment
+            from openpyxl.utils import get_column_letter
+
+            with pd.ExcelWriter(path, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, sheet_name="Run Data")
+                ws = writer.sheets["Run Data"]
+
+                header_font = Font(bold=True, color="FFFFFF")
+                header_fill = PatternFill("solid", fgColor="2F5597")
+                for col_idx, _ in enumerate(df.columns, start=1):
+                    cell = ws.cell(row=1, column=col_idx)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = Alignment(horizontal="center")
+                    # Auto-width
+                    max_len = max(
+                        len(str(cell.value)),
+                        *(len(str(ws.cell(row=r, column=col_idx).value or ""))
+                        for r in range(2, min(ws.max_row + 1, 100)))
+                    )
+                    ws.column_dimensions[get_column_letter(col_idx)].width = max_len + 4
+
+            self.write_to_terminal(f"[INFO] Data saved to {path}  ({target_len} rows, {len(df.columns)} columns)")
+
+        except Exception as e:
+            # Fallback: plain save if openpyxl formatting fails
+            df.to_excel(path, index=False)
+            self.write_to_terminal(f"[WARN] Saved without formatting ({e})")
 
