@@ -302,7 +302,7 @@ class Data_Handler:
                 [] if self.valve_history == [] else ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]],
                 ["Arduino Connected", "Binary", self.Arduino_connected, 0, 0, 1, 1],
                 [] if self.sensor_history == [] else ["Methane Sensor Relative to Ambient", "All", self.sensor_history[-1][3], 0, 0, self.methane_ambient * 1.1, self.methane_ambient * 1.2],
-                [] if self.sensor_history == [] else ["E-Stop", "Binary", self.sensor_history[-1][6], 0, 0, 1, 1] # 1 = not engaged, 0 = engaged, emergency
+                #[] if self.sensor_history == [] else ["E-Stop", "Binary", self.sensor_history[-1][6], 0, 0, 1, 1] # 1 = not engaged, 0 = engaged, emergency
             ]
         )
 
