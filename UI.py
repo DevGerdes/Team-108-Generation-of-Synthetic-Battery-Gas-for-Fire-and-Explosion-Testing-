@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import scrolledtext
-from tkinter import Tk, filedialog, simpledialog
+from tkinter import Tk, filedialog, simpledialog, messagebox
 import time
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
@@ -86,15 +86,23 @@ class UI_Object(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
 
+
+
     def on_close(self):
         """Ensure clean shutdown when the window is closed."""
+        # Prompt user for confirmation
+        if not messagebox.askokcancel("Quit", "Are you sure you want to close the application?"):
+            return
+
         try:
             if self.cs is not None:
                 # Optionally stop threads, close connections, etc.
-                self.cs.emergency_stop() 
-                time.sleep(0.5) # Give some time for threads to stop and resources to release
+                self.cs.emergency_stop()
+                self.set_state(0) # Set state to EMERGENCY STOP to signal all threads to stop
+                time.sleep(0.5)  # Give some time for threads to stop and resources to release
         except Exception:
             pass
+
         self.destroy()
         self.quit()
 
@@ -366,12 +374,18 @@ class UI_Object(tk.Tk):
                 variable=valve_var
             ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10)
 
+            last_setpoints = []
+            if len(self.dh.setpoint_history) > 0:
+                last_setpoints = self.dh.setpoint_history[-1][1:6]  # Skip time (index 0), take next 5
+
             sp_vars = []
             for i in range(5):
                 tk.Label(popup, text=f"MFC {i+1}:").grid(
                     row=i+2, column=0, sticky="e", padx=5, pady=2
                 )
                 v = tk.StringVar()
+                if i < len(last_setpoints):
+                    v.set(str(last_setpoints[i]))
                 tk.Entry(popup, textvariable=v, width=12).grid(
                     row=i+2, column=1, padx=5, pady=2
                 )

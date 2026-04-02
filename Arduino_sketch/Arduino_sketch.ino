@@ -118,6 +118,7 @@ void DAC_begin() {
  * @param voltage   Desired output voltage (0.0 – 5.0V)
  */
 void DAC_writeVoltage(uint8_t channel, float voltage) {
+
   voltage = constrain(voltage, 0.0, VDD);
   uint16_t rawValue = (uint16_t)((voltage / VDD) * 4095.0);
 
@@ -232,6 +233,7 @@ bool parseLine(const char *s)
 
 float mfcSlpmToVoltage(float slpm)
 {
+    slpm = (slpm+.5855)/.9647;
     if (slpm < 0)   slpm = 0;
     if (slpm > 500) slpm = 500;
     if (slpm < .1)  slpm = 0;
