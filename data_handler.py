@@ -268,7 +268,7 @@ class Data_Handler:
                     self.response_history[-1][i],
                     0, 0,
                     1.1 * self.setpoint_history[-1][i], # Warning at over 110% of setpoint, max at 120%
-                    1.2 * self.setpoint_history[-1][i],
+                    1.5 * self.setpoint_history[-1][i],
                 ]
                 for i in range(1,min(len(self.setpoint_history[-1]),self.num_mfcs))
             ]
@@ -297,11 +297,11 @@ class Data_Handler:
                 [] if self.sensor_history == [] else ["Mixing Chamber Pressure", "All", self.sensor_history[-1][1], 0, 0, 23, 25],
                 [] if self.sensor_history == [] else ["Line Pressure", "All", self.sensor_history[-1][2], 0, 0, 23, 25],
                 [] if self.sensor_history == [] else ["Pressure Delta - Loss of Pressure", "All", (self.sensor_history[-1][1] - self.sensor_history[-1][2])/(self.sensor_history[-1][0] - self.sensor_history[-2][0] if len(self.sensor_history) > 1 else 1), -10, -10, 40, 50],
-                [] if self.sensor_history == [] else ["Methane Sensor Absolute", "All", self.sensor_history[-1][3], 0, 0, .4, .6],
+                #[] if self.sensor_history == [] else ["Methane Sensor Absolute", "All", self.sensor_history[-1][3], 0, 0, .4, .6],
                 #[] if self.sensor_history == [] else ["Gas Sensor 2", "All", self.sensor_history[-1][4], 0, 0, 40, 50],
                 #[] if self.valve_history == [] else ["Valve State", "Binary", self.valve_history[-1][1], 0, 0, 1, self.setpoint_history[-1][-1]],
                 ["Arduino Connected", "Binary", self.Arduino_connected, 0, 0, 1, 1],
-                [] if self.sensor_history == [] else ["Methane Sensor Relative to Ambient", "All", self.sensor_history[-1][3], 0, 0, self.methane_ambient * 1.1, self.methane_ambient * 1.2],
+                #[] if self.sensor_history == [] else ["Methane Sensor Relative to Ambient", "All", self.sensor_history[-1][3], 0, 0, self.methane_ambient * 1.1, self.methane_ambient * 1.2],
                 #[] if self.sensor_history == [] else ["E-Stop", "Binary", self.sensor_history[-1][6], 0, 0, 1, 1] # 1 = not engaged, 0 = engaged, emergency
             ]
         )

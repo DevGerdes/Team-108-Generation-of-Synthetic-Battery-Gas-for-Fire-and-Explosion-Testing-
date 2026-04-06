@@ -6,7 +6,7 @@
 # Emma Watson - MFC's and Testing Planner, Controls Team
 # Clay Mercer - Controls Hardware, Controls Team
 # Aidan Hounshell - Safety Expert, Mechanical Design, and Fabrication, Mechanical Team
-# Gerard (Gary) Resulaj - Mechanical Design and Fabrication, Mechanical Team
+# Gerard (Gary) Resulaj - Mixing Chamber Expert, Mechanical Design and Fabrication, Mechanical Team
 # Remy Nioche - CAD and Fabrication, Mechanical Team
 #
 # Graduated Spring 2026, Virginia Tech, Mechanical Engineering
