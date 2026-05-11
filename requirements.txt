@@ -1,0 +1,25 @@
+# Requirements for Team 108 - Synthetic Battery Gas Controller
+# Python >= 3.9 recommended (pycache indicates CPython 3.11 was used during development)
+#
+# Install with: pip install -r requirements.txt
+ 
+# Serial communication with Arduino hardware
+pyserial>=3.5
+ 
+# Data manipulation and Excel recipe file (.xlsx) reading/writing
+pandas>=1.5.0
+openpyxl>=3.0.10       # Required by pandas for .xlsx support
+ 
+# Numerical computation
+numpy>=1.23.0
+ 
+# Plotting / live data visualization (embedded in Tkinter UI)
+matplotlib>=3.6.0
+ 
+# tkinter is part of the Python standard library (usually bundled with Python).
+# If it is missing on Linux, install it via your package manager:
+#   Ubuntu/Debian:  sudo apt-get install python3-tk
+#   Fedora/RHEL:    sudo dnf install python3-tkinter
+#
+# The following standard-library modules are also used and require no installation:
+#   collections, csv, math, os, threading, time
