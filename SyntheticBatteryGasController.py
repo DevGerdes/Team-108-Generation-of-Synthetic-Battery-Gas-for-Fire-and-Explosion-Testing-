@@ -14,6 +14,8 @@
 # Primarily coded by Devin Gerdes
 # Test plan conversion coded by Emma Watson
 # 
+# Github:
+# https://github.com/DevGerdes/Team-108-Generation-of-Synthetic-Battery-Gas-for-Fire-and-Explosion-Testing-.git
 
 
 # Import functions or objects from other files
