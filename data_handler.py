@@ -252,6 +252,7 @@ class Data_Handler:
         # Emergency condition test frames
         # Name, Test type, Value, Min, warning min, warning max, max 
         # If test is binary (T/F) then use 0,0,0,1 where last value is desired state, first is opposite, middle ignored
+
         MFC_setpoint_tests = [
             [f"MFC {i} Setpoint",
              "All",
@@ -330,4 +331,4 @@ class Data_Handler:
         if violations != []:
             joined = ',\n'.join(violations)
             self.UI.write_to_terminal(f"Warning: {joined}")
-            #self.cs.set_state(0) # Set state to emergency stop
+            self.cs.set_state(0) # Set state to emergency stop
